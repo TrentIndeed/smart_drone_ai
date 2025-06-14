@@ -20,8 +20,8 @@ class DroneAI:
     def __init__(self, grid_size, plan_steps=3):
         self.grid_size = grid_size
         self.plan_steps = plan_steps
-        self.reasoning = ""
-        self.reasoning_lines = []
+        self.reasoning = "AI initializing..."
+        self.reasoning_lines = ["AI initializing...", "Analyzing environment...", "Planning movement..."]
         self.movement_plan = []
         self.current_plan_step = 0
         self.running = True
@@ -179,17 +179,25 @@ class DroneAI:
                             "reasoning": reasoning
                         })
                         self.reasoning = reasoning
-                        self.reasoning_lines = textwrap.wrap(reasoning, width=50)[:8]  # REASONING_LINES = 8
+                        self.reasoning_lines = textwrap.wrap(reasoning, width=45)[:5]  # Use 5 lines to fit in smaller area
+                        print(f"DEBUG: Updated reasoning: {self.reasoning_lines}")  # Debug output
                     else:
                         self.movement_plan = self.create_fallback_plan(drone.pos, target.pos, obstacles)
                         self.current_plan_step = 0
+                        self.reasoning = "Plan validation failed - using fallback strategy"
+                        self.reasoning_lines = ["Plan validation failed", "Using fallback strategy", "Moving toward target"]
                 else:
                     self.movement_plan = self.create_fallback_plan(drone.pos, target.pos, obstacles)
                     self.current_plan_step = 0
+                    self.reasoning = "Invalid plan received - using fallback"
+                    self.reasoning_lines = ["Invalid plan received", "Using fallback strategy", "Direct approach"]
 
             except Exception as e:
                 self.movement_plan = self.create_fallback_plan(drone.pos, target.pos, obstacles)
                 self.current_plan_step = 0
+                self.reasoning = f"AI Error: {str(e)[:50]}..."
+                self.reasoning_lines = ["AI Decision Error", f"Error: {str(e)[:30]}...", "Using fallback plan"]
+                print(f"DEBUG: AI Error: {e}")  # Debug output
 
             steps += 1
     

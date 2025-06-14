@@ -6,10 +6,10 @@ import pygame
 GRID_SIZE = 10  # Represents 50ft x 50ft area (each unit = 5ft)
 CELL_SIZE = 60
 WINDOW_SIZE = 800
-REASONING_HEIGHT = 200
+REASONING_HEIGHT = 120  # Reduced from 200 to 120
 FPS = 60
-FONT_SIZE = 16
-REASONING_LINES = 8
+FONT_SIZE = 20  # Increased from 16 to 20
+REASONING_LINES = 5  # Reduced from 8 to 5 to fit in smaller area
 
 # Obstacle size
 OBSTACLE_RADIUS = 0.3  # 1.5ft radius obstacles
@@ -124,7 +124,7 @@ class Environment:
         """Initialize pygame display."""
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + REASONING_HEIGHT))
-        self.font = pygame.font.SysFont("Courier", 16)
+        self.font = pygame.font.SysFont("Courier", FONT_SIZE)  # Use the FONT_SIZE constant
         pygame.display.set_caption("Drone LLM Agent")
         return pygame.time.Clock()
     
@@ -169,10 +169,17 @@ class Environment:
                           (int(drone_pos[0]*CELL_SIZE), int(drone_pos[1]*CELL_SIZE)),
                           int(DRONE_RADIUS*CELL_SIZE))
 
-        # Draw reasoning text
-        for i, line in enumerate(reasoning_lines):
-            text_surface = self.font.render(line, True, (255, 255, 255))
-            self.screen.blit(text_surface, (5, WINDOW_SIZE + 5 + i * FONT_SIZE))
+        # Draw reasoning text with better spacing
+        if reasoning_lines:
+            for i, line in enumerate(reasoning_lines):
+                if line:  # Make sure line is not empty
+                    text_surface = self.font.render(line, True, (255, 255, 255))
+                    # Use slightly more spacing between lines for better readability
+                    self.screen.blit(text_surface, (8, WINDOW_SIZE + 8 + i * (FONT_SIZE + 4)))
+        else:
+            # Show debug text if no reasoning lines
+            debug_text = self.font.render("No reasoning available", True, (255, 0, 0))
+            self.screen.blit(debug_text, (8, WINDOW_SIZE + 8))
 
         pygame.display.flip()
     

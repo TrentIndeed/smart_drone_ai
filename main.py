@@ -29,7 +29,7 @@ def main():
     
     # Setup obstacles
     env.setup_obstacles(drone.pos, target.pos)
-    
+            
     # Initialize AI
     ai = DroneAI(GRID_SIZE)
     
@@ -147,7 +147,7 @@ def main():
                 else:
                     ai.movement_plan = ai.create_fallback_plan(drone.pos, target.pos, env.obstacles)
                     ai.current_plan_step = 0
-
+            
             # Check if we've reached the current step
             step_tolerance = 0.3 if emergency_mode else (0.1 if close_to_target else 0.2)
             if distance(drone.pos, ai.movement_plan[ai.current_plan_step]) < step_tolerance:
@@ -166,7 +166,7 @@ def main():
         if bounds_changed and ai.movement_plan:
             ai.movement_plan = ai.create_fallback_plan(drone.pos, target.pos, env.obstacles)
             ai.current_plan_step = 0
-
+        
         # Update target behavior
         target.update(drone.pos, env.obstacles, dt)
 

@@ -3,9 +3,9 @@ import random
 
 # Target physics (track runner - reduced speed for easier catching)
 # Target max speed: reduced from 25 mph to ~18 mph for easier drone interception
-TARGET_MAX_SPEED = 3.5  # units/s (≈ 17.5 ft/s ≈ 12 mph)
+TARGET_MAX_SPEED = 3  # units/s (≈ 17.5 ft/s ≈ 12 mph)
 # Track runner acceleration: slightly reduced for easier catching
-TARGET_ACCELERATION = 1.2  # units/s² (≈ 6 ft/s²)
+TARGET_ACCELERATION = 2  # units/s² (≈ 6 ft/s²)
 
 # Target: Human-sized runner
 TARGET_RADIUS = 0.1  # 0.5ft radius (1ft diameter person)
