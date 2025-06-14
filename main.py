@@ -23,37 +23,57 @@ skills = {
 }
 
 # --- Drone Environment Setup ---
-GRID_SIZE = 10
+GRID_SIZE = 10  # Represents 50ft x 50ft area (each unit = 5ft)
 CELL_SIZE = 60
-WINDOW_SIZE = GRID_SIZE * CELL_SIZE
+WINDOW_SIZE = 800
 REASONING_HEIGHT = 200
 FPS = 60
 FONT_SIZE = 16
 REASONING_LINES = 8
-MOVE_SPEED = 5.0
-MAX_SPEED = 8.0
-ACCELERATION = 4.0
-TARGET_SPEED = 2.0
-LLM_DECISION_INTERVAL = 1.0
-DRONE_RADIUS = 0.3  # Smaller radius for drone
-TARGET_RADIUS = 0.3  # Smaller radius for target
-OBSTACLE_RADIUS = 0.4  # Slightly larger radius for obstacles
-MIN_OBSTACLE_DISTANCE = 0.6  # Reduced minimum distance to obstacles
+
+# Physics constants (scaled for 50ft x 50ft area)
+# Drone: 2x2ft = 0.4 units in our 10-unit grid
+DRONE_RADIUS = 0.2  # 1ft radius (2ft diameter drone)
+
+# Target: Human-sized runner
+TARGET_RADIUS = 0.1  # 0.5ft radius (1ft diameter person)
+
+# Obstacle size
+OBSTACLE_RADIUS = 0.3  # 1.5ft radius obstacles
+
+# Drone physics (realistic for small commercial drone)
+# Real drone max speed: ~35 mph = 51.3 ft/s = 10.26 units/s in our scale
+MAX_SPEED = 10.0  # units/s (≈ 50 ft/s ≈ 34 mph)
+# Real drone acceleration: ~10-15 ft/s² = 2.0-3.0 units/s² in our scale  
+ACCELERATION = 2.4  # units/s² (≈ 12 ft/s²)
+
+# Target physics (track runner)
+# Target max speed: 25 mph = 36.7 ft/s = 7.34 units/s in our scale
+TARGET_MAX_SPEED = 5.0  # units/s (≈ 25 ft/s ≈ 17 mph)
+# Track runner acceleration: ~8-12 ft/s² = 1.6-2.4 units/s² in our scale
+TARGET_ACCELERATION = 1.6  # units/s² (≈ 8 ft/s²)
+
+# Movement parameters
+MOVE_SPEED = 6.0  # Increased for smaller arena
+MIN_OBSTACLE_DISTANCE = 0.5  # 2.5ft minimum distance from obstacles
+LLM_DECISION_INTERVAL = 0.5  # Reduced from 1.0 to 0.5 seconds for more responsive AI
 
 # Global state
 drone_pos = [0.0, 0.0]
 drone_target = [0.0, 0.0]
 drone_velocity = [0.0, 0.0]
 target_pos = [0.0, 0.0]
+target_velocity = [0.0, 0.0]  # Add target velocity for realistic acceleration
 target_direction = [0.0, 0.0]
 obstacles = []
+obstacle_types = []  # Track obstacle types: 'tree' or 'rock'
 reasoning = ""
 reasoning_lines = []
 running = True
 llm_thread = None
 movement_plan = []  # List of planned positions
 current_plan_step = 0
-PLAN_STEPS = 3  # Number of steps in each plan
+PLAN_STEPS = 3
 
 def format_position(pos):
     return [round(pos[0], 2), round(pos[1], 2)]
@@ -126,6 +146,45 @@ def move_towards(current_pos, target_pos, speed, dt):
     dy = dy / dist * speed * dt
     return format_position([current_pos[0] + dx, current_pos[1] + dy])
 
+def move_target_with_acceleration(current_pos, current_velocity, desired_direction, dt):
+    """Move target with realistic acceleration like a track runner."""
+    # Normalize desired direction
+    dir_magnitude = math.sqrt(desired_direction[0]**2 + desired_direction[1]**2)
+    if dir_magnitude < 0.001:
+        # If no desired direction, gradually slow down
+        deceleration = TARGET_ACCELERATION * 0.5
+        current_speed = get_speed(current_velocity)
+        if current_speed > 0.1:
+            new_velocity = [
+                current_velocity[0] * (1 - deceleration * dt / current_speed),
+                current_velocity[1] * (1 - deceleration * dt / current_speed)
+            ]
+        else:
+            new_velocity = [0.0, 0.0]
+    else:
+        # Normalize direction
+        desired_direction = [desired_direction[0] / dir_magnitude, desired_direction[1] / dir_magnitude]
+        
+        # Apply acceleration in desired direction
+        new_velocity = [
+            current_velocity[0] + desired_direction[0] * TARGET_ACCELERATION * dt,
+            current_velocity[1] + desired_direction[1] * TARGET_ACCELERATION * dt
+        ]
+        
+        # Cap speed at TARGET_MAX_SPEED
+        new_speed = get_speed(new_velocity)
+        if new_speed > TARGET_MAX_SPEED:
+            new_velocity[0] = new_velocity[0] / new_speed * TARGET_MAX_SPEED
+            new_velocity[1] = new_velocity[1] / new_speed * TARGET_MAX_SPEED
+    
+    # Update position
+    new_pos = [
+        current_pos[0] + new_velocity[0] * dt,
+        current_pos[1] + new_velocity[1] * dt
+    ]
+    
+    return format_position(new_pos), [round(v, 2) for v in new_velocity]
+
 # --- Ollama Communication ---
 def prompt_ollama(prompt, model="llama3"):
     process = subprocess.Popen(
@@ -147,10 +206,22 @@ def is_position_safe(pos, obstacles, drone_radius=DRONE_RADIUS, obstacle_radius=
     """Check if a position is safe (not colliding with obstacles)."""
     min_distance = MIN_OBSTACLE_DISTANCE
     if relaxed:
-        min_distance = MIN_OBSTACLE_DISTANCE * 0.5  # More lenient when close to target
+        min_distance = MIN_OBSTACLE_DISTANCE * 0.3  # More lenient when close to target
     
+    required_distance = drone_radius + obstacle_radius + min_distance
+    
+    # Quick bounds check first
+    if pos[0] < drone_radius or pos[0] > GRID_SIZE - drone_radius:
+        return False
+    if pos[1] < drone_radius or pos[1] > GRID_SIZE - drone_radius:
+        return False
+    
+    # Check obstacles with optimized distance calculation
     for obs in obstacles:
-        if distance(pos, obs) < drone_radius + obstacle_radius + min_distance:
+        dx = pos[0] - obs[0]
+        dy = pos[1] - obs[1]
+        dist_squared = dx*dx + dy*dy
+        if dist_squared < required_distance * required_distance:
             return False
     return True
 
@@ -239,7 +310,13 @@ def llm_decision_loop():
     steps = 0
 
     while running and steps < 20:
+        if not running:  # Check if we should stop
+            break
+            
         time.sleep(LLM_DECISION_INTERVAL)
+        
+        if not running:  # Check again after sleep
+            break
         
         print(f"\nStep {steps}")
         print("Drone:", format_position(drone_pos), "Target:", format_position(target_pos))
@@ -262,19 +339,27 @@ def llm_decision_loop():
             "history": history[-5:],
         }
         prompt = (
-            "You are a drone control AI agent. You are on a 10x10 grid.\n"
-            f"Current position: {format_position(drone_pos)}\n"
-            f"Current velocity: {[round(v, 2) for v in drone_velocity]}\n"
-            f"Current speed: {get_speed(drone_velocity):.2f} units/second\n"
-            f"Target position: {format_position(target_pos)}\n"
-            f"Obstacles at: {[format_position(obs) for obs in obstacles]}\n"
-            "Your goal is to get in line of sight and intercept the target.\n"
+            "You are a drone control AI agent. You are operating in a 100ft x 100ft area (10x10 grid, each unit = 10ft).\n"
+            f"DRONE: Position {format_position(drone_pos)}, Velocity {[round(v, 2) for v in drone_velocity]}, Speed {get_speed(drone_velocity):.2f} units/s\n"
+            f"TARGET: Position {format_position(target_pos)}, Velocity {[round(v, 2) for v in target_velocity]}, Speed {get_speed(target_velocity):.2f} units/s\n"
+            f"OBSTACLES: {[format_position(obs) for obs in obstacles]}\n"
+            "PHYSICS: Drone (2x2ft, max 34mph, 12ft/s² accel), Target (track runner, max 17mph, 8ft/s² accel)\n"
+            "TARGET BEHAVIOR: The target is ACTIVELY EVADING you! It will:\n"
+            "- Run away from your current position\n"
+            "- Avoid walls and obstacles\n"
+            "- Use trees and rocks for cover\n"
+            "- Change direction to escape your pursuit\n"
+            "PREDICTION: Based on target's current velocity and evasive behavior, predict where it will be in 1-3 seconds.\n"
+            "STRATEGY: Create an INTERCEPTION plan, not a chase plan. Go where the target WILL BE, not where it IS.\n"
+            "Consider:\n"
+            "1. Target's current velocity and likely escape routes\n"
+            "2. How target will react to your movement\n"
+            "3. Use obstacles to cut off escape paths\n"
+            "4. Plan multiple steps ahead to corner the target\n"
             "You have the following skills available:\n" +
             "\n".join([f"- {k}: {v}" for k,v in skills.items()]) + "\n"
-            "You can move in any direction within the 10x10 grid (x and y must stay between 0 and 9).\n"
-            "Create a 3-step plan to intercept the target. Each step should be a position that gets closer to the target.\n"
-            "The drone only needs to touch the target's edge to intercept it, not hit its center.\n"
-            "Reply in JSON like: {\"plan\": [[x1,y1], [x2,y2], [x3,y3]], \"reasoning\": \"...\"}"
+            "Create a 3-step INTERCEPTION plan. Each step should anticipate target movement.\n"
+            "Reply in JSON like: {\"plan\": [[x1,y1], [x2,y2], [x3,y3]], \"reasoning\": \"Target moving [direction] at [speed], will likely be at [prediction] in 2s. My plan: [strategy]\"}"
         )
 
         try:
@@ -308,17 +393,13 @@ def llm_decision_loop():
                     })
                     reasoning_lines = textwrap.wrap(reasoning, width=50)[:REASONING_LINES]
                 else:
-                    print("Invalid plan - steps don't get closer to target")
                     movement_plan = create_fallback_plan(drone_pos, target_pos)
                     current_plan_step = 0
             else:
-                print("Invalid plan from LLM. Using fallback plan...")
                 movement_plan = create_fallback_plan(drone_pos, target_pos)
                 current_plan_step = 0
 
         except Exception as e:
-            print("LLM parsing failed:", e)
-            print("RAW LLM response:", response)
             movement_plan = create_fallback_plan(drone_pos, target_pos)
             current_plan_step = 0
 
@@ -334,9 +415,17 @@ def draw_grid(screen, font):
             rect = pygame.Rect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(screen, (50, 50, 50), rect, 1)
 
-    # Draw obstacles
-    for obs in obstacles:
-        pygame.draw.circle(screen, (100, 100, 100), 
+    # Draw obstacles with different colors for trees and rocks
+    for i, obs in enumerate(obstacles):
+        if i < len(obstacle_types):
+            if obstacle_types[i] == 'tree':
+                color = (34, 139, 34)  # Forest green for trees
+            else:  # rock
+                color = (105, 105, 105)  # Dim gray for rocks
+        else:
+            color = (100, 100, 100)  # Default gray
+            
+        pygame.draw.circle(screen, color, 
                          (int(obs[0]*CELL_SIZE), int(obs[1]*CELL_SIZE)),
                          int(OBSTACLE_RADIUS*CELL_SIZE))
 
@@ -365,7 +454,7 @@ def render_reasoning(screen, font):
 
 # --- Main Animation Loop ---
 def main():
-    global drone_pos, drone_velocity, target_pos, target_direction, obstacles, running, movement_plan, current_plan_step
+    global drone_pos, drone_velocity, target_pos, target_velocity, target_direction, obstacles, obstacle_types, running, movement_plan, current_plan_step
 
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + REASONING_HEIGHT))
@@ -378,18 +467,25 @@ def main():
     drone_target = [5.0, 5.0]  # Set initial target further away
     drone_velocity = [0.0, 0.0]
     target_pos = random_position()
+    target_velocity = [0.0, 0.0]  # Initialize target velocity
     target_direction = [random.uniform(-1, 1), random.uniform(-1, 1)]
     
-    # Generate obstacles with minimum spacing
+    # Generate obstacles with minimum spacing (trees and rocks)
     obstacles = []
-    for _ in range(3):  # Reduced number of obstacles
+    obstacle_types = []  # Reset global obstacle types
+    
+    for _ in range(12):  # Increased number of obstacles for better hiding
         attempts = 0
-        while attempts < 50:  # Limit attempts to prevent infinite loop
+        while attempts < 100:  # More attempts for denser placement
             pos = random_position()
             # Check if this position is far enough from other obstacles and the drone's start position
-            if (all(distance(pos, obs) > 2.5 * OBSTACLE_RADIUS for obs in obstacles) and
-                distance(pos, drone_pos) > 2.5 * OBSTACLE_RADIUS):
+            min_spacing = 1.5 * OBSTACLE_RADIUS  # Reduced spacing for denser forest
+            if (all(distance(pos, obs) > min_spacing for obs in obstacles) and
+                distance(pos, drone_pos) > 2.0 * OBSTACLE_RADIUS and
+                distance(pos, target_pos) > 1.5 * OBSTACLE_RADIUS):
                 obstacles.append(pos)
+                # Randomly assign obstacle type
+                obstacle_types.append(random.choice(['tree', 'rock']))
                 break
             attempts += 1
     
@@ -400,9 +496,11 @@ def main():
     unsafe_counter = 0  # Counter for unsafe path attempts
     position_history = []  # Track recent positions to detect oscillation
     emergency_mode = False  # Emergency mode for when drone is really stuck
+    last_print_time = 0  # Throttle console output
 
     # Start LLM decision thread
     llm_thread = threading.Thread(target=llm_decision_loop)
+    llm_thread.daemon = True  # Make thread daemon so it stops when main stops
     llm_thread.start()
 
     last_time = time.time()
@@ -416,18 +514,21 @@ def main():
                 running = False
                 break
 
-        # Track position history for oscillation detection
-        position_history.append(drone_pos.copy())
-        if len(position_history) > 20:  # Keep last 20 positions
-            position_history.pop(0)
+        # Track position history for oscillation detection (less frequently)
+        if len(position_history) == 0 or current_time - getattr(main, 'last_history_time', 0) > 0.1:  # Only update every 0.1 seconds
+            position_history.append(drone_pos.copy())
+            main.last_history_time = current_time
+            if len(position_history) > 15:  # Keep last 15 positions
+                position_history.pop(0)
 
-        # Check for oscillation (drone moving back and forth)
-        if len(position_history) >= 10:
-            recent_positions = position_history[-10:]
+        # Check for oscillation less frequently (drone moving back and forth)
+        if len(position_history) >= 8 and current_time - getattr(main, 'last_oscillation_check', 0) > 0.5:  # Check every 0.5 seconds
+            recent_positions = position_history[-8:]
             avg_movement = sum(distance(recent_positions[i], recent_positions[i-1]) 
                              for i in range(1, len(recent_positions))) / (len(recent_positions) - 1)
             if avg_movement < 0.05:  # Very small movements indicate stuck
                 stuck_counter += 1
+            main.last_oscillation_check = current_time
 
         # Update drone position with acceleration
         if movement_plan and current_plan_step < len(movement_plan):
@@ -458,8 +559,11 @@ def main():
                 movement_distance = distance(new_pos, last_pos)
                 if movement_distance < 0.01:
                     stuck_counter += 1
-                    if stuck_counter > 3:  # Reduced threshold for faster response
-                        print("Drone appears stuck, entering emergency mode...")
+                    if stuck_counter > 5:  # Increased threshold to reduce console spam
+                        # Throttle console output to prevent frame rate issues
+                        if current_time - last_print_time > 2.0:  # Only print once every 2 seconds
+                            print("Drone stuck, entering emergency mode...")
+                            last_print_time = current_time
                         emergency_mode = True
                         # Force movement towards target
                         emergency_direction = [
@@ -476,12 +580,13 @@ def main():
                         movement_plan = create_fallback_plan(new_pos, target_pos)
                         current_plan_step = 0
                         stuck_counter = 0
+                        unsafe_counter = 0
                 else:
                     stuck_counter = 0
                     # Exit emergency mode if we're moving well
                     if emergency_mode and movement_distance > 0.1:
                         emergency_mode = False
-                        print("Exiting emergency mode - drone moving normally")
+                        # Remove console output for exiting emergency mode to reduce spam
                     
                 drone_pos = new_pos
                 drone_velocity = new_velocity
@@ -490,16 +595,19 @@ def main():
                 # If not safe, increment unsafe counter
                 unsafe_counter += 1
                 if unsafe_counter > unsafe_threshold:
-                    if close_to_target:
-                        print("Close to target, forcing careful movement...")
-                    else:
-                        print("Too many unsafe attempts, forcing movement...")
+                    # Throttle console output more aggressively
+                    if current_time - last_print_time > 3.0:  # Only print once every 3 seconds
+                        if close_to_target:
+                            print("Close to target, forcing movement...")
+                        else:
+                            print("Forcing movement...")
+                        last_print_time = current_time
                     drone_pos = new_pos
                     drone_velocity = new_velocity
                     last_pos = drone_pos.copy()
                     unsafe_counter = 0
                 else:
-                    # Create a new plan
+                    # Create a new plan silently to avoid console spam
                     movement_plan = create_fallback_plan(drone_pos, target_pos)
                     current_plan_step = 0
 
@@ -519,38 +627,129 @@ def main():
                 movement_plan = create_fallback_plan(drone_pos, target_pos)
                 current_plan_step = 0
 
-        # Keep drone within bounds
-        drone_pos[0] = max(DRONE_RADIUS, min(GRID_SIZE - DRONE_RADIUS, drone_pos[0]))
-        drone_pos[1] = max(DRONE_RADIUS, min(GRID_SIZE - DRONE_RADIUS, drone_pos[1]))
+        # Keep drone within bounds with proper collision handling
+        if drone_pos[0] <= DRONE_RADIUS:
+            drone_pos[0] = DRONE_RADIUS
+            drone_velocity[0] = 0  # Stop sliding along wall
+            if movement_plan:  # Create new plan if hitting wall
+                movement_plan = create_fallback_plan(drone_pos, target_pos)
+                current_plan_step = 0
+        elif drone_pos[0] >= GRID_SIZE - DRONE_RADIUS:
+            drone_pos[0] = GRID_SIZE - DRONE_RADIUS
+            drone_velocity[0] = 0  # Stop sliding along wall
+            if movement_plan:  # Create new plan if hitting wall
+                movement_plan = create_fallback_plan(drone_pos, target_pos)
+                current_plan_step = 0
+                
+        if drone_pos[1] <= DRONE_RADIUS:
+            drone_pos[1] = DRONE_RADIUS
+            drone_velocity[1] = 0  # Stop sliding along wall
+            if movement_plan:  # Create new plan if hitting wall
+                movement_plan = create_fallback_plan(drone_pos, target_pos)
+                current_plan_step = 0
+        elif drone_pos[1] >= GRID_SIZE - DRONE_RADIUS:
+            drone_pos[1] = GRID_SIZE - DRONE_RADIUS
+            drone_velocity[1] = 0  # Stop sliding along wall
+            if movement_plan:  # Create new plan if hitting wall
+                movement_plan = create_fallback_plan(drone_pos, target_pos)
+                current_plan_step = 0
 
-        # Update target position
-        target_pos = move_towards(target_pos, 
-                                [target_pos[0] + target_direction[0], 
-                                 target_pos[1] + target_direction[1]], 
-                                TARGET_SPEED, dt)
+        # Update target behavior - actively avoid drone and walls
+        drone_distance = distance(target_pos, drone_pos)
+        
+        # Calculate escape direction from drone
+        if drone_distance > 0.1:
+            escape_direction = [
+                (target_pos[0] - drone_pos[0]) / drone_distance,
+                (target_pos[1] - drone_pos[1]) / drone_distance
+            ]
+        else:
+            escape_direction = [random.uniform(-1, 1), random.uniform(-1, 1)]
+        
+        # Add wall avoidance
+        wall_avoidance = [0.0, 0.0]
+        wall_buffer = TARGET_RADIUS + 0.5  # Stay away from walls
+        
+        if target_pos[0] < wall_buffer:  # Too close to left wall
+            wall_avoidance[0] += 1.0
+        elif target_pos[0] > GRID_SIZE - wall_buffer:  # Too close to right wall
+            wall_avoidance[0] -= 1.0
+            
+        if target_pos[1] < wall_buffer:  # Too close to top wall
+            wall_avoidance[1] += 1.0
+        elif target_pos[1] > GRID_SIZE - wall_buffer:  # Too close to bottom wall
+            wall_avoidance[1] -= 1.0
+        
+        # Add obstacle avoidance
+        obstacle_avoidance = [0.0, 0.0]
+        for obs in obstacles:
+            obs_distance = distance(target_pos, obs)
+            if obs_distance < OBSTACLE_RADIUS + TARGET_RADIUS + 0.8:  # Close to obstacle
+                if obs_distance > 0.1:
+                    avoid_dir = [
+                        (target_pos[0] - obs[0]) / obs_distance,
+                        (target_pos[1] - obs[1]) / obs_distance
+                    ]
+                    obstacle_avoidance[0] += avoid_dir[0] * 0.5
+                    obstacle_avoidance[1] += avoid_dir[1] * 0.5
+        
+        # Combine all influences with weights
+        drone_weight = 2.0 if drone_distance < 3.0 else 1.0  # Stronger avoidance when drone is close
+        wall_weight = 3.0  # Strong wall avoidance
+        obstacle_weight = 1.5
+        random_weight = 0.3  # Small random component for unpredictability
+        
+        target_direction = [
+            escape_direction[0] * drone_weight + 
+            wall_avoidance[0] * wall_weight + 
+            obstacle_avoidance[0] * obstacle_weight +
+            random.uniform(-1, 1) * random_weight,
+            
+            escape_direction[1] * drone_weight + 
+            wall_avoidance[1] * wall_weight + 
+            obstacle_avoidance[1] * obstacle_weight +
+            random.uniform(-1, 1) * random_weight
+        ]
+        
+        # Normalize direction
+        dir_magnitude = math.sqrt(target_direction[0]**2 + target_direction[1]**2)
+        if dir_magnitude > 0.1:
+            target_direction[0] /= dir_magnitude
+            target_direction[1] /= dir_magnitude
+        
+        # Move target with acceleration like a track runner
+        target_pos, target_velocity = move_target_with_acceleration(target_pos, target_velocity, target_direction, dt)
 
-        # Bounce target off walls
-        if target_pos[0] <= TARGET_RADIUS or target_pos[0] >= GRID_SIZE - TARGET_RADIUS:
-            target_direction[0] *= -1
-        if target_pos[1] <= TARGET_RADIUS or target_pos[1] >= GRID_SIZE - TARGET_RADIUS:
-            target_direction[1] *= -1
-
-        # Keep target within bounds
-        target_pos[0] = max(TARGET_RADIUS, min(GRID_SIZE - TARGET_RADIUS, target_pos[0]))
-        target_pos[1] = max(TARGET_RADIUS, min(GRID_SIZE - TARGET_RADIUS, target_pos[1]))
+        # Keep target within bounds with better boundary handling
+        if target_pos[0] <= TARGET_RADIUS:
+            target_pos[0] = TARGET_RADIUS
+            target_velocity[0] = abs(target_velocity[0]) * 0.5  # Bounce away from wall
+        elif target_pos[0] >= GRID_SIZE - TARGET_RADIUS:
+            target_pos[0] = GRID_SIZE - TARGET_RADIUS
+            target_velocity[0] = -abs(target_velocity[0]) * 0.5  # Bounce away from wall
+            
+        if target_pos[1] <= TARGET_RADIUS:
+            target_pos[1] = TARGET_RADIUS
+            target_velocity[1] = abs(target_velocity[1]) * 0.5  # Bounce away from wall
+        elif target_pos[1] >= GRID_SIZE - TARGET_RADIUS:
+            target_pos[1] = GRID_SIZE - TARGET_RADIUS
+            target_velocity[1] = -abs(target_velocity[1]) * 0.5  # Bounce away from wall
 
         # Check for collision using circle boundaries
         if check_circle_collision(drone_pos, target_pos, DRONE_RADIUS, TARGET_RADIUS):
             print("✅ Target reached! Ending simulation.")
-            running = False
+            running = False  # This will stop the LLM thread too
             break
 
         draw_grid(screen, font)
         render_reasoning(screen, font)
         clock.tick(FPS)
 
+    # Ensure clean shutdown
+    running = False
     pygame.quit()
-    llm_thread.join()
+    if llm_thread.is_alive():
+        llm_thread.join(timeout=1.0)  # Wait up to 1 second for thread to finish
 
 if __name__ == "__main__":
     main()
