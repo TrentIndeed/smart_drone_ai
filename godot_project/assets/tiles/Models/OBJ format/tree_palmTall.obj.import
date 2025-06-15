@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dvs4cs2l4cbln"
+path="res://.godot/imported/tree_palmTall.obj-d2446611f02c1d28a1da125f724111ba.mesh"
+
+[deps]
+
+files=["res://.godot/imported/tree_palmTall.obj-d2446611f02c1d28a1da125f724111ba.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/tree_palmTall.obj"
+dest_files=["res://.godot/imported/tree_palmTall.obj-d2446611f02c1d28a1da125f724111ba.mesh", "res://.godot/imported/tree_palmTall.obj-d2446611f02c1d28a1da125f724111ba.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

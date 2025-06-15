@@ -1,0 +1,12 @@
+timestamp,run_id,duration,success,distance_traveled,avg_speed,target_caught,strategy_used,obstacles_hit,emergency_mode_time
+# Run history for hunter drone AI
+# timestamp: Unix timestamp of run start
+# run_id: Unique identifier for each run
+# duration: Total run time in seconds
+# success: Boolean indicating if target was caught
+# distance_traveled: Total distance traveled by drone
+# avg_speed: Average speed during run
+# target_caught: Boolean indicating successful target capture
+# strategy_used: Primary strategy employed during run
+# obstacles_hit: Number of obstacle collisions
+# emergency_mode_time: Time spent in emergency mode 

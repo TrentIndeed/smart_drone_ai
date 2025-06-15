@@ -1,0 +1,11 @@
+[gd_resource type="Environment" format=3 uid="uid://dwauye0ty72vw"]
+
+[resource]
+background_mode = 1
+background_color = Color(0.05, 0.1, 0.2, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.9, 1, 1)
+ambient_light_energy = 0.3
+reflected_light_source = 2
+tonemap_mode = 2
+glow_enabled = true

@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b4s16gv4qtrlx"
+path="res://.godot/imported/cliff_topDiagonal_rock.obj-9bc2805fbc424be7a4b49560331224ef.mesh"
+
+[deps]
+
+files=["res://.godot/imported/cliff_topDiagonal_rock.obj-9bc2805fbc424be7a4b49560331224ef.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/cliff_topDiagonal_rock.obj"
+dest_files=["res://.godot/imported/cliff_topDiagonal_rock.obj-9bc2805fbc424be7a4b49560331224ef.mesh", "res://.godot/imported/cliff_topDiagonal_rock.obj-9bc2805fbc424be7a4b49560331224ef.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

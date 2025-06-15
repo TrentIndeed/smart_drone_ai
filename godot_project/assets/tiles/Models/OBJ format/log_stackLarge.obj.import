@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://csxcp2ifvcbqa"
+path="res://.godot/imported/log_stackLarge.obj-c1beeee66f773d965a3716b355e4282a.mesh"
+
+[deps]
+
+files=["res://.godot/imported/log_stackLarge.obj-c1beeee66f773d965a3716b355e4282a.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/log_stackLarge.obj"
+dest_files=["res://.godot/imported/log_stackLarge.obj-c1beeee66f773d965a3716b355e4282a.mesh", "res://.godot/imported/log_stackLarge.obj-c1beeee66f773d965a3716b355e4282a.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

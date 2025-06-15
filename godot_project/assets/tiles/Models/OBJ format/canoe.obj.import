@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://tyfyio4r84p8"
+path="res://.godot/imported/canoe.obj-d0f7085d9dd29f59f23594fbd02fee8d.mesh"
+
+[deps]
+
+files=["res://.godot/imported/canoe.obj-d0f7085d9dd29f59f23594fbd02fee8d.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/canoe.obj"
+dest_files=["res://.godot/imported/canoe.obj-d0f7085d9dd29f59f23594fbd02fee8d.mesh", "res://.godot/imported/canoe.obj-d0f7085d9dd29f59f23594fbd02fee8d.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

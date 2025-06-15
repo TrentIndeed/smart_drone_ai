@@ -1,0 +1,72 @@
+[gd_scene load_steps=4 format=3 uid="uid://bvk8j0x2qr2wd"]
+
+[ext_resource type="Script" path="res://scripts/GameManager.gd" id="1_h4n2p"]
+[ext_resource type="PackedScene" path="res://scenes/Ground.tscn" id="2_ground"]
+[ext_resource type="Script" path="res://scripts/CameraController.gd" id="3_camera"]
+
+[node name="Main" type="Node3D"]
+
+[node name="GameManager" type="Node3D" parent="."]
+script = ExtResource("1_h4n2p")
+
+[node name="CameraController" type="Node3D" parent="."]
+script = ExtResource("3_camera")
+
+[node name="Camera3D" type="Camera3D" parent="CameraController"]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 2.5, 5)
+fov = 80.0
+near = 0.1
+far = 100.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+light_energy = 1.0
+shadow_enabled = true
+
+[node name="Ground" parent="." instance=ExtResource("2_ground")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="StatusPanel" type="Panel" parent="UI"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -150.0
+offset_right = 350.0
+offset_bottom = -10.0
+
+[node name="StatusLabel" type="RichTextLabel" parent="UI/StatusPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+text = "Hunter Drone AI - LangGraph Edition
+Status: Initializing...
+Controls: R to restart, Space to pause/resume, ESC to exit
+Camera: 3rd Person Drone View"
+
+[node name="AIReasoningPanel" type="Panel" parent="UI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -400.0
+offset_right = -10.0
+offset_bottom = 200.0
+
+[node name="AIReasoningLabel" type="RichTextLabel" parent="UI/AIReasoningPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+text = "AI Reasoning:
+Simulated AI active
+Strategic interception mode" 

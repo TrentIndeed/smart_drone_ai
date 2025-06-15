@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cyethui7eerep"
+path="res://.godot/imported/stone_smallB.obj-c0767a5ced460f72f3556ee50f0d53dd.mesh"
+
+[deps]
+
+files=["res://.godot/imported/stone_smallB.obj-c0767a5ced460f72f3556ee50f0d53dd.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/stone_smallB.obj"
+dest_files=["res://.godot/imported/stone_smallB.obj-c0767a5ced460f72f3556ee50f0d53dd.mesh", "res://.godot/imported/stone_smallB.obj-c0767a5ced460f72f3556ee50f0d53dd.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

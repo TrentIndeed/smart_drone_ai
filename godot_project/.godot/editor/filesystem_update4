@@ -1,0 +1,8 @@
+res://scripts/GameManager.gd
+res://scripts/AIInterface.gd
+res://scripts/Drone.gd
+res://scripts/Obstacle.gd
+res://scripts/Target.gd
+res://default_env.tres
+res://scenes/Target.tscn
+res://scripts/CameraController.gd

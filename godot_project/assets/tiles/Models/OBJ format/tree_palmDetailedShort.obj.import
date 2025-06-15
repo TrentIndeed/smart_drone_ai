@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://bhrh5wv41roof"
+path="res://.godot/imported/tree_palmDetailedShort.obj-f78bc062bf2c72f2d6b7a63e477c41a9.mesh"
+
+[deps]
+
+files=["res://.godot/imported/tree_palmDetailedShort.obj-f78bc062bf2c72f2d6b7a63e477c41a9.mesh"]
+
+source_file="res://assets/tiles/Models/OBJ format/tree_palmDetailedShort.obj"
+dest_files=["res://.godot/imported/tree_palmDetailedShort.obj-f78bc062bf2c72f2d6b7a63e477c41a9.mesh", "res://.godot/imported/tree_palmDetailedShort.obj-f78bc062bf2c72f2d6b7a63e477c41a9.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
