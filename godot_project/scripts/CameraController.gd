@@ -2,11 +2,11 @@ extends Node3D
 
 # 3rd Person Camera Controller for following the drone
 
-@export var follow_distance: float = 5.0
-@export var follow_height: float = 2.5
-@export var follow_speed: float = 8.0
-@export var look_ahead_distance: float = 3.0
-@export var camera_angle: float = 15.0  # Degrees down from horizontal
+@export var follow_distance: float = 3.0  # Closer like Fortnite
+@export var follow_height: float = 1.2   # Lower height
+@export var follow_speed: float = 10.0   # Faster response
+@export var look_ahead_distance: float = 1.5
+@export var camera_angle: float = 5.0    # Much smaller downward angle
 
 var drone: Node3D
 var camera: Camera3D
@@ -45,19 +45,22 @@ func _process(delta):
 	# Smoothly move camera controller to desired position
 	position = position.lerp(desired_position, follow_speed * delta)
 	
-	# Make camera look at drone from its current position
+	# Make camera look at drone from its current position (Fortnite style)
 	var camera_world_pos = global_position
-	var look_target = drone.global_position + Vector3.UP * 0.2  # Look slightly above drone
+	var look_target = drone.global_position + Vector3.UP * 0.5  # Look at drone center/slightly above
 	
-	# Calculate look direction and apply it
+	# Calculate look direction
 	var look_direction = (look_target - camera_world_pos).normalized()
+	
+	# Create camera basis looking at drone
 	var camera_basis = Basis.looking_at(look_direction, Vector3.UP)
 	
-	# Apply slight downward rotation for racing game feel
+	# Apply very slight downward tilt (Fortnite has minimal tilt)
 	camera_basis = camera_basis.rotated(camera_basis.x, deg_to_rad(camera_angle))
 	
 	# Set camera transform
 	camera.transform.basis = camera_basis
+	camera.transform.origin = Vector3.ZERO  # Keep camera at controller position
 
 func set_follow_target(target: Node3D):
 	"""Set a new target for the camera to follow"""
