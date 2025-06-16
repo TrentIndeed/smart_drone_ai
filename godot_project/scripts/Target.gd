@@ -72,10 +72,10 @@ func _update_panic_mode(delta: float):
 	if drone:
 		var distance_to_drone = position.distance_to(drone.position)
 		
-		# Enter panic mode if drone is close (fixed distance for 3D world)
-		if distance_to_drone < 2.0:  # 2 world units instead of 150
+		# Enter panic mode if drone is close (much earlier detection)
+		if distance_to_drone < 4.0:  # Start evading when drone is 4 units away
 			panic_mode = true
-			panic_timer = 2.0  # Stay in panic for 2 seconds
+			panic_timer = 3.0  # Stay in panic for 3 seconds
 		elif panic_timer <= 0:
 			panic_mode = false
 	
@@ -128,7 +128,8 @@ func _update_autonomous_movement(delta: float):
 			direction_change_timer = randf_range(0.5, 1.0)  # Change direction faster if stuck
 	
 	# Always apply base movement (target should always be moving)
-	velocity = movement_direction * (max_speed * 0.7)  # Always moving at 70% speed
+	var base_speed_multiplier = 0.8  # Increased from 0.7 to 0.8 for more active movement
+	velocity = movement_direction * (max_speed * base_speed_multiplier)
 	
 	# Avoid boundaries
 	_avoid_boundaries()
@@ -146,7 +147,7 @@ func move_evasively(evasion_direction: Vector3, delta: float):
 	
 	# Speed boost in panic mode
 	if panic_mode:
-		current_speed *= 1.5  # Increased speed boost
+		current_speed *= 2.0  # Strong speed boost when evading
 	
 	# Add randomness to movement (keep on XZ plane)
 	var random_offset = Vector3(

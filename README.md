@@ -38,7 +38,7 @@ The AI agent uses a sophisticated state machine with these nodes:
 5. **Act** - Execute movement commands back to Godot
 
 ### Godot Simulation
-- Real-time 2D simulation with physics
+- Real-time 3D simulation with physics
 - Responsive target with evasive behavior  
 - Dynamic obstacle avoidance
 - Visual feedback of AI reasoning

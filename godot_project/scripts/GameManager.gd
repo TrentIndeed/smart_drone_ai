@@ -122,6 +122,11 @@ func start_simulation():
 	start_time = Time.get_time_dict_from_system().get("second", 0)
 	simulation_time = 0.0
 	
+	# Update UI to show running state
+	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	if status_label:
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nControls: R to restart, Space to pause/resume, ESC to exit\nCamera: 3rd Person Drone View"
+	
 	# Reset positions
 	drone.reset_position(_grid_to_world(Vector2(1, 1)))
 	target.reset_position(_grid_to_world(Vector2(8, 8)))
@@ -183,17 +188,20 @@ func _update_target_behavior(delta: float):
 	# Get current positions
 	var target_pos = target.position
 	var drone_pos = drone.position
+	var distance_to_drone = target_pos.distance_to(drone_pos)
 	
-	# Calculate evasion direction (away from drone, on XZ plane)
-	var evasion_direction = Vector3(target_pos.x - drone_pos.x, 0, target_pos.z - drone_pos.z).normalized()
-	
-	# Add some randomness to movement
-	var random_offset = Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3))
-	evasion_direction += random_offset
-	evasion_direction = evasion_direction.normalized()
-	
-	# Move target
-	target.move_evasively(evasion_direction, delta)
+	# Only trigger evasive behavior if drone is within detection range
+	if distance_to_drone < 5.0:  # Start evasive behavior when drone is 5 units away
+		# Calculate evasion direction (away from drone, on XZ plane)
+		var evasion_direction = Vector3(target_pos.x - drone_pos.x, 0, target_pos.z - drone_pos.z).normalized()
+		
+		# Add some randomness to movement
+		var random_offset = Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3))
+		evasion_direction += random_offset
+		evasion_direction = evasion_direction.normalized()
+		
+		# Move target evasively
+		target.move_evasively(evasion_direction, delta)
 
 func _on_ai_decision_received(decision: Dictionary):
 	"""Handle AI decision from LangGraph agent"""
@@ -311,6 +319,10 @@ func _input(event):
 				status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: PAUSED\nPress Space to resume, R to restart, ESC to exit"
 		else:
 			print("Resuming simulation")
+			# Update UI to show running state
+			var status_label = get_node("../UI/StatusPanel/StatusLabel")
+			if status_label:
+				status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nControls: R to restart, Space to pause/resume, ESC to exit\nCamera: 3rd Person Drone View"
 			start_simulation()
 	elif Input.is_action_just_pressed("ui_accept"):  # Enter key
 		if not simulation_running:
