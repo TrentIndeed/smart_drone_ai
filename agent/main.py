@@ -228,11 +228,16 @@ async def main():
     """Main entry point for testing the agent"""
     agent = HunterDroneAgent()
     
-    # Simulate some updates
+    # Simulate some updates with new obstacle format
+    test_obstacles = [
+        {"position": [5.0, 5.0], "blocks_drone": False, "blocks_target": True, "type": "tree"},
+        {"position": [3.0, 7.0], "blocks_drone": False, "blocks_target": True, "type": "rock"},
+    ]
+    
     test_updates = [
-        ([2.0, 2.0], [8.0, 8.0], [[5.0, 5.0], [3.0, 7.0]]),
-        ([2.5, 2.5], [7.5, 8.5], [[5.0, 5.0], [3.0, 7.0]]),
-        ([3.0, 3.0], [7.0, 9.0], [[5.0, 5.0], [3.0, 7.0]]),
+        ([2.0, 2.0], [8.0, 8.0], test_obstacles),
+        ([2.5, 2.5], [7.5, 8.5], test_obstacles),
+        ([3.0, 3.0], [7.0, 9.0], test_obstacles),
     ]
     
     for i, (drone_pos, target_pos, obstacles) in enumerate(test_updates):

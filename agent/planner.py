@@ -19,20 +19,23 @@ class DronePlanner:
     def __init__(self, grid_size: int = 10):
         self.grid_size = grid_size
         self.plan_steps = 3
-        self.max_speed = 12.0  # ft/s
-        self.max_acceleration = 12.0  # ft/s²
+        self.max_speed = 16.0  # ft/s - Realistic 2x2ft surveillance drone speed  
+        self.max_acceleration = 15.0  # ft/s² - Better acceleration than human
         
-        # Skill library
+        # Skill library - drone can fly over obstacles, target cannot
         self.skills = {
-            "intercept": "Calculate best path to reach the target quickly",
+            "intercept": "Calculate best path to reach the target quickly - drone can fly over obstacles",
             "predict_target_path": "Predict future positions of a moving target",
-            "avoid_obstacles": "Plan a route that avoids obstacles",
-            "corner_target": "Use obstacles to limit target's escape routes",
+            "aerial_advantage": "Fly directly over obstacles that block the ground-bound target",
+            "corner_target": "Use obstacles to trap the ground-bound target - drone can fly over",
+            "overhead_pursuit": "Maintain pursuit by flying over terrain the target must navigate around",
+            "engagement_positioning": "Position for optimal shooting range (1.5 units) to neutralize target",
+            "shooting_approach": "Close to 2.5 unit max range for target engagement",
             "emergency_pursuit": "Direct aggressive pursuit when other strategies fail"
         }
     
     async def create_interception_plan(self, drone_pos: List[float], target_pos: List[float], 
-                                     obstacles: List[List[float]], memory_context: Dict,
+                                     obstacles: List[Dict], memory_context: Dict,
                                      emergency_mode: bool = False) -> Tuple[List[List[float]], str]:
         """Create an interception plan using AI reasoning"""
         
@@ -57,7 +60,7 @@ class DronePlanner:
         return self._create_algorithmic_plan(drone_pos, target_pos, obstacles)
     
     async def _ai_powered_planning(self, drone_pos: List[float], target_pos: List[float], 
-                                 obstacles: List[List[float]], memory_context: Dict) -> Tuple[List[List[float]], str]:
+                                 obstacles: List[Dict], memory_context: Dict) -> Tuple[List[List[float]], str]:
         """Use AI (Ollama) to generate strategic plans"""
         
         # Build context from memory
@@ -75,12 +78,15 @@ CURRENT SITUATION:
 - Target Position: {self._format_pos(target_pos)}
 - Distance to Target: {distance_to_target:.2f} units
 - Target Direction: {target_direction}
-- Obstacles: {[self._format_pos(obs) for obs in obstacles]}
+- Obstacles: {self._format_obstacles_for_prompt(obstacles)}
 
 ENVIRONMENT:
 - Grid Size: {self.grid_size}x{self.grid_size} units (each unit = 10ft)
-- Drone: Max speed {self.max_speed} ft/s, Max acceleration {self.max_acceleration} ft/s²
-- Target: Actively evading, uses obstacles for cover
+- Drone: Max speed {self.max_speed} ft/s (~35 mph), Max acceleration {self.max_acceleration} ft/s² - CAN FLY OVER OBSTACLES
+- Target: Human runner (~25 mph max), ground-bound, CANNOT fly over obstacles - must navigate around them
+- Speed Advantage: Drone is ~40% faster than target and has aerial mobility
+- WEAPONS: Must neutralize target within shooting range (max 2.5 units, optimal 1.5 units)
+- MISSION: Position within range and engage - NOT capture by proximity
 
 MEMORY CONTEXT:
 {context_str}
@@ -91,11 +97,14 @@ AVAILABLE SKILLS:
 TASK: Create a {self.plan_steps}-step interception plan. The target is ACTIVELY EVADING - predict where it will go and intercept it there.
 
 STRATEGY CONSIDERATIONS:
-1. Predict target's likely escape routes
-2. Use obstacles to cut off escape paths  
-3. Plan interception points, not chase points
-4. Account for target's reaction to your movement
-5. Use successful patterns from memory
+1. AERIAL ADVANTAGE: You can fly directly over obstacles while target must go around
+2. ENGAGEMENT RANGE: Must get within 2.5 units to neutralize (optimal: 1.5 units)
+3. Predict target's likely escape routes (limited by ground obstacles)
+4. Use obstacles to cut off target's escape paths - you can fly over them to intercept
+5. Plan positioning for engagement, not just pursuit - STOP WHEN IN RANGE
+6. Target will seek cover behind obstacles - use your flight to bypass this
+7. Maintain shooting position once in optimal range (1.5 units)
+8. Use successful patterns from memory
 
 Respond in JSON format:
 {{
@@ -158,7 +167,7 @@ Respond in JSON format:
             return None
     
     def _create_algorithmic_plan(self, drone_pos: List[float], target_pos: List[float], 
-                               obstacles: List[List[float]]) -> Tuple[List[List[float]], str]:
+                               obstacles: List[Dict]) -> Tuple[List[List[float]], str]:
         """Create plan using algorithmic approach"""
         
         # Calculate interception points
@@ -184,12 +193,21 @@ Respond in JSON format:
             plan.append(interception_point)
             current_pos = interception_point
         
-        reasoning = f"Algorithmic interception plan targeting predicted positions. Target velocity: {target_velocity}"
+        # Calculate current distance for reasoning
+        current_distance = self._distance(drone_pos, target_pos)
+        if current_distance <= 1.5:
+            range_status = "OPTIMAL ENGAGEMENT RANGE"
+        elif current_distance <= 2.5:
+            range_status = "IN SHOOTING RANGE"
+        else:
+            range_status = f"CLOSING TO ENGAGE ({current_distance:.1f} units)"
+        
+        reasoning = f"Algorithmic engagement plan: {range_status}. Target velocity: {target_velocity}"
         
         return plan, reasoning
     
     def _create_emergency_plan(self, drone_pos: List[float], target_pos: List[float], 
-                             obstacles: List[List[float]]) -> Tuple[List[List[float]], str]:
+                             obstacles: List[Dict]) -> Tuple[List[List[float]], str]:
         """Create emergency plan for when drone is stuck or failing"""
         
         # Direct pursuit with obstacle avoidance
@@ -209,9 +227,9 @@ Respond in JSON format:
             # Clamp to bounds
             next_pos = self._clamp_to_bounds(next_pos)
             
-            # Basic obstacle avoidance
-            if self._is_position_unsafe(next_pos, obstacles):
-                # Try perpendicular directions
+            # Basic obstacle avoidance (drone can fly over obstacles, so this is minimal)
+            if self._is_position_unsafe(next_pos, obstacles, for_drone=True):
+                # Try perpendicular directions (though drone should rarely need this)
                 perpendicular = [-direction[1], direction[0]]
                 next_pos = [
                     current_pos[0] + perpendicular[0] * step_size,
@@ -227,7 +245,7 @@ Respond in JSON format:
         return plan, reasoning
     
     def _validate_plan(self, plan: List[List[float]], drone_pos: List[float], 
-                      target_pos: List[float], obstacles: List[List[float]]) -> bool:
+                      target_pos: List[float], obstacles: List[Dict]) -> bool:
         """Validate that a plan is reasonable"""
         if not plan or len(plan) != self.plan_steps:
             return False
@@ -271,30 +289,41 @@ Respond in JSON format:
         return "\n".join(context_parts) if context_parts else "No relevant memory context"
     
     def _calculate_interception_point(self, drone_pos: List[float], target_pos: List[float], 
-                                    obstacles: List[List[float]]) -> List[float]:
-        """Calculate optimal interception point"""
-        # Simple interception calculation
+                                    obstacles: List[Dict]) -> List[float]:
+        """Calculate optimal interception point for engagement"""
+        # Calculate current distance to target
         direction = self._get_direction_vector(drone_pos, target_pos)
         distance = self._distance(drone_pos, target_pos)
         
-        # Move 1/3 of the way toward target
-        step_size = min(distance / 3, 1.0)
+        # Shooting range parameters
+        max_range = 2.5
+        optimal_range = 1.5
+        
+        # If already in optimal range, stay close
+        if distance <= optimal_range:
+            step_size = 0.2  # Small adjustments only
+        elif distance <= max_range:
+            # In shooting range - close to optimal range
+            step_size = min((distance - optimal_range) * 0.8, 0.5)
+        else:
+            # Too far - close distance more aggressively
+            step_size = min(distance / 2, 1.0)
         
         interception_point = [
             drone_pos[0] + direction[0] * step_size,
             drone_pos[1] + direction[1] * step_size
         ]
         
-        # Avoid obstacles
-        if self._is_position_unsafe(interception_point, obstacles):
-            # Try alternative positions
+        # Minimal obstacle avoidance for drone (can fly over most obstacles)
+        if self._is_position_unsafe(interception_point, obstacles, for_drone=True):
+            # Try alternative positions (though drone should rarely need this)
             for angle_offset in [0.5, -0.5, 1.0, -1.0]:
                 angle = math.atan2(direction[1], direction[0]) + angle_offset
                 alt_point = [
                     drone_pos[0] + math.cos(angle) * step_size,
                     drone_pos[1] + math.sin(angle) * step_size
                 ]
-                if not self._is_position_unsafe(alt_point, obstacles):
+                if not self._is_position_unsafe(alt_point, obstacles, for_drone=True):
                     interception_point = alt_point
                     break
         
@@ -305,7 +334,7 @@ Respond in JSON format:
         # Simplified - assume target moves away from center
         center = [self.grid_size / 2, self.grid_size / 2]
         direction = self._get_direction_vector(center, target_pos)
-        speed = 2.0  # Estimated target speed
+        speed = 1.8  # Realistic human jogging speed (3.0 * 0.6 base multiplier)
         
         return [direction[0] * speed, direction[1] * speed]
     
@@ -334,12 +363,34 @@ Respond in JSON format:
         """Calculate distance between positions"""
         return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
     
-    def _is_position_unsafe(self, pos: List[float], obstacles: List[List[float]], 
-                          safety_margin: float = 0.5) -> bool:
-        """Check if position is too close to obstacles"""
+    def _is_position_unsafe(self, pos: List[float], obstacles: List[Dict], 
+                          safety_margin: float = 0.5, for_drone: bool = True) -> bool:
+        """Check if position is too close to obstacles
+        
+        Args:
+            pos: Position to check
+            obstacles: List of obstacle dictionaries with position and blocking info
+            safety_margin: Safety distance
+            for_drone: If True, only check obstacles that block drones (none currently)
+                      If False, check obstacles that block target (all of them)
+        """
         for obstacle in obstacles:
-            if self._distance(pos, obstacle) < safety_margin:
+            # Handle both old format (list) and new format (dict)
+            if isinstance(obstacle, dict):
+                obstacle_pos = obstacle["position"]
+                blocks_drone = obstacle.get("blocks_drone", True)  # Default to blocking for safety
+                
+                # Drone can fly over obstacles, target cannot
+                if for_drone and not blocks_drone:
+                    continue  # Skip obstacles that don't block the drone
+                
+            else:
+                # Legacy format - treat as position only
+                obstacle_pos = obstacle
+            
+            if self._distance(pos, obstacle_pos) < safety_margin:
                 return True
+        
         return False
     
     def _clamp_to_bounds(self, pos: List[float]) -> List[float]:
@@ -351,4 +402,18 @@ Respond in JSON format:
     
     def _format_pos(self, pos: List[float]) -> str:
         """Format position for display"""
-        return f"[{pos[0]:.1f}, {pos[1]:.1f}]" 
+        return f"[{pos[0]:.1f}, {pos[1]:.1f}]"
+    
+    def _format_obstacles_for_prompt(self, obstacles: List[Dict]) -> str:
+        """Format obstacles for AI prompt"""
+        formatted = []
+        for obs in obstacles:
+            if isinstance(obs, dict):
+                pos_str = self._format_pos(obs["position"])
+                obs_type = obs.get("type", "unknown")
+                blocks_target = obs.get("blocks_target", True)
+                formatted.append(f"{pos_str} ({obs_type}, blocks_target: {blocks_target})")
+            else:
+                # Legacy format
+                formatted.append(self._format_pos(obs))
+        return formatted

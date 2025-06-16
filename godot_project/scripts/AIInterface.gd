@@ -74,6 +74,7 @@ func _send_environment_update():
 		"drone_position": [_world_to_grid_x(current_drone_pos.x), _world_to_grid_z(current_drone_pos.z)],
 		"target_position": [_world_to_grid_x(current_target_pos.x), _world_to_grid_z(current_target_pos.z)],
 		"obstacles": _format_obstacles(current_obstacles),
+		"shooting_range": _calculate_shooting_range(),
 		"timestamp": Time.get_time_dict_from_system()
 	}
 	
@@ -85,10 +86,29 @@ func _send_environment_update():
 	_simulate_ai_response(environment_data)
 
 func _format_obstacles(obstacles: Array[Vector3]) -> Array:
-	"""Format obstacles for AI consumption"""
+	"""Format obstacles for AI consumption with type information"""
 	var formatted = []
-	for obstacle in obstacles:
-		formatted.append([_world_to_grid_x(obstacle.x), _world_to_grid_z(obstacle.z)])  # Use x,z for ground plane
+	var obstacle_nodes = get_tree().get_nodes_in_group("obstacles")
+	
+	for i in range(obstacles.size()):
+		var obstacle_data = {
+			"position": [_world_to_grid_x(obstacles[i].x), _world_to_grid_z(obstacles[i].z)],
+			"blocks_drone": false,  # Drone can fly over obstacles
+			"blocks_target": true,  # Target is ground-bound
+			"type": "unknown"
+		}
+		
+		# Try to get obstacle type from the node if available
+		if i < obstacle_nodes.size():
+			var obstacle_node = obstacle_nodes[i]
+			if obstacle_node.has_method("get_obstacle_info"):
+				var info = obstacle_node.get_obstacle_info()
+				obstacle_data["type"] = info.get("type", "unknown")
+			elif "obstacle_type" in obstacle_node:
+				obstacle_data["type"] = obstacle_node.obstacle_type
+		
+		formatted.append(obstacle_data)
+	
 	return formatted
 
 func _world_to_grid_x(world_x: float) -> float:
@@ -99,6 +119,20 @@ func _world_to_grid_z(world_z: float) -> float:
 	"""Convert world Z coordinate to grid coordinate"""
 	return world_z / 0.8 + 5.0  # 0.8 is cell_size, 5.0 is half of 10x10 grid
 
+func _calculate_shooting_range() -> Dictionary:
+	"""Calculate current shooting range status"""
+	var distance = current_drone_pos.distance_to(current_target_pos)
+	var max_range = 1.0  # Match drone's max_shooting_range (20ft)
+	var optimal_range = 0.6  # Match drone's optimal_shooting_range (12ft)
+	
+	return {
+		"distance": distance,
+		"in_range": distance <= max_range,
+		"optimal_range": distance <= optimal_range,
+		"max_range": max_range,
+		"range_percentage": (distance / max_range) * 100.0
+	}
+
 func _simulate_ai_response(environment_data: Dictionary):
 	"""Simulate AI response for testing purposes"""
 	# This is a placeholder - in production, this would come from the Python agent
@@ -108,24 +142,51 @@ func _simulate_ai_response(environment_data: Dictionary):
 	var drone_grid = environment_data["drone_position"]
 	var target_grid = environment_data["target_position"]
 	
-	# Simple interception: move towards target with slight prediction
+	# Calculate distance and direction
 	var direction_x = target_grid[0] - drone_grid[0]
 	var direction_z = target_grid[1] - drone_grid[1]
+	var distance = sqrt(direction_x * direction_x + direction_z * direction_z)
 	
 	# Predict where target will be and move there
 	var predicted_x = target_grid[0] + direction_x * 0.3
 	var predicted_z = target_grid[1] + direction_z * 0.3
 	
 	# Clamp to grid bounds
-	predicted_x = clamp(predicted_x, 0, 10)
-	predicted_z = clamp(predicted_z, 0, 10)
+	predicted_x = clamp(predicted_x, 0, 9)
+	predicted_z = clamp(predicted_z, 0, 9)
+	
+	# Generate more detailed reasoning based on situation
+	var reasoning = ""
+	var emergency_mode = false
+	var confidence = 0.8
+	
+	if distance < 2.0:
+		reasoning = "Target very close! Direct pursuit mode. Distance: " + str(round(distance * 10) / 10) + " units"
+		emergency_mode = true
+		confidence = 0.95
+	elif distance < 4.0:
+		reasoning = "Target within range. Calculating interception path. Predicting movement to (" + str(round(predicted_x * 10) / 10) + ", " + str(round(predicted_z * 10) / 10) + ")"
+		confidence = 0.85
+	else:
+		reasoning = "Target distant. Moving to optimal position for pursuit. Distance: " + str(round(distance * 10) / 10) + " units"
+		confidence = 0.7
+	
+	# Add obstacle awareness
+	if current_obstacles.size() > 0:
+		reasoning += ". Navigating through " + str(current_obstacles.size()) + " tree/rock obstacles (low-altitude challenge)"
+	
+	var shooting_info = _calculate_shooting_range()
+	if shooting_info.in_range:
+		reasoning += ". TARGET IN RANGE - engaging"
+	else:
+		reasoning += ". Closing to engage (range: " + str(shooting_info.distance) + ")"
 	
 	var simulated_response = {
 		"type": "move_command",
 		"target_position": [predicted_x, predicted_z],
-		"reasoning": "Simulated AI: Intercepting target at predicted position",
-		"emergency_mode": false,
-		"confidence": 0.8
+		"reasoning": reasoning,
+		"emergency_mode": emergency_mode,
+		"confidence": confidence
 	}
 	
 	ai_decision_received.emit(simulated_response)

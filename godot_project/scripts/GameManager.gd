@@ -45,6 +45,11 @@ func _ready():
 	ai_interface.ai_decision_received.connect(_on_ai_decision_received)
 	ai_interface.ai_error_occurred.connect(_on_ai_error)
 	
+	# Initialize AI reasoning display
+	var ai_reasoning_label = get_node("../UI/AIReasoningPanel/AIReasoningLabel")
+	if ai_reasoning_label:
+		ai_reasoning_label.text = "AI Reasoning:\nInitializing AI system...\nAnalyzing environment...\nTACTICAL CHALLENGE: Drone must navigate tree branches\nWEAPONS SYSTEM: Engaging within 10ft range only\nTarget is ground-bound - both must avoid obstacles\nPreparing strategic assessment..."
+	
 	# Wait a frame to ensure any duplicates are cleared
 	await get_tree().process_frame
 	
@@ -64,13 +69,18 @@ func _setup_game_objects():
 	add_child(drone)
 	drone.position = _grid_to_world(Vector2(1, 1))
 	drone.collision_detected.connect(_on_drone_collision)
+	drone.target_shot.connect(_on_target_neutralized)
+	drone.shot_fired.connect(_on_shot_fired)
 	drone.add_to_group("drone")
 	print("Drone created at: ", drone.position)
 	
 	# Create target
 	target = preload("res://scenes/Target.tscn").instantiate()
 	add_child(target)
-	target.position = _grid_to_world(Vector2(8, 8))
+	# Find a safe spawn position away from obstacles
+	var target_spawn_pos = _find_safe_spawn_position()
+	target_spawn_pos.y = 0.0  # Ensure target is at ground level
+	target.position = target_spawn_pos
 	target.caught.connect(_on_target_caught)
 	target.add_to_group("target")
 	print("Target created at: ", target.position)
@@ -97,20 +107,25 @@ func _clear_existing_entities():
 	obstacles.clear()
 
 func _generate_obstacles():
-	"""Generate random obstacles in the environment"""
-	var obstacle_positions = [
-		Vector2(3, 3),
-		Vector2(5, 2),
-		Vector2(7, 5),
-		Vector2(2, 7),
-		Vector2(6, 8)
-	]
+	"""Collect manually placed obstacles from the scene"""
+	# Clear any existing obstacles
+	obstacles.clear()
 	
-	for pos in obstacle_positions:
-		var obstacle = preload("res://scenes/Obstacle.tscn").instantiate()
-		add_child(obstacle)
-		obstacle.position = _grid_to_world(pos)
-		obstacles.append(obstacle)
+	# Find all nodes in the obstacles group (manually placed)
+	var obstacle_nodes = get_tree().get_nodes_in_group("obstacles")
+	
+	for obstacle in obstacle_nodes:
+		# Only add obstacles that are children of this GameManager or Main scene
+		if obstacle.get_parent() == self or obstacle.get_parent() == get_parent():
+			obstacles.append(obstacle)
+			print("Found obstacle: ", obstacle.name, " at position: ", obstacle.position)
+	
+	print("Total obstacles found: ", obstacles.size())
+	
+	# If no obstacles found, add a few programmatically as backup
+	if obstacles.size() == 0:
+		print("No manually placed obstacles found - adding some programmatically")
+		_add_default_obstacles()
 
 func start_simulation():
 	"""Start the hunting simulation"""
@@ -125,11 +140,13 @@ func start_simulation():
 	# Update UI to show running state
 	var status_label = get_node("../UI/StatusPanel/StatusLabel")
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nControls: R to restart, Space to pause/resume, ESC to exit\nCamera: 3rd Person Drone View"
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
 	
 	# Reset positions
 	drone.reset_position(_grid_to_world(Vector2(1, 1)))
-	target.reset_position(_grid_to_world(Vector2(8, 8)))
+	var target_spawn_pos = _find_safe_spawn_position()
+	target_spawn_pos.y = 0.0  # Ensure target is at ground level
+	target.reset_position(target_spawn_pos)
 	
 	simulation_started.emit()
 
@@ -159,15 +176,8 @@ func _process(delta):
 	# Update target behavior (evasive movement)
 	_update_target_behavior(delta)
 	
-	# Check for target capture
-	if drone and target:
-		var distance = drone.position.distance_to(target.position)
-		if distance < 0.8:  # Capture distance
-			print("CAPTURE DETECTED! Distance: ", distance)
-			_on_target_caught()
-		else:
-			# Also let target check for capture (backup)
-			target.check_capture(drone.position)
+	# No longer check for proximity capture - only shooting neutralization
+	# The drone's shooting system handles target neutralization automatically
 
 func _update_ai_state():
 	"""Send current environment state to AI"""
@@ -190,8 +200,8 @@ func _update_target_behavior(delta: float):
 	var drone_pos = drone.position
 	var distance_to_drone = target_pos.distance_to(drone_pos)
 	
-	# Only trigger evasive behavior if drone is within detection range
-	if distance_to_drone < 5.0:  # Start evasive behavior when drone is 5 units away
+	# Trigger evasive behavior if drone is within shooting range or close
+	if distance_to_drone < 3.5:  # Start evasive behavior when drone approaches shooting range
 		# Calculate evasion direction (away from drone, on XZ plane)
 		var evasion_direction = Vector3(target_pos.x - drone_pos.x, 0, target_pos.z - drone_pos.z).normalized()
 		
@@ -209,6 +219,15 @@ func _on_ai_decision_received(decision: Dictionary):
 		return
 	
 	print("AI Decision: ", decision.get("reasoning", "No reasoning provided"))
+	
+	# Update AI reasoning display in UI
+	var ai_reasoning_label = get_node("../UI/AIReasoningPanel/AIReasoningLabel")
+	if ai_reasoning_label:
+		var reasoning_text = decision.get("reasoning", "No reasoning provided")
+		var confidence = decision.get("confidence", 0.0)
+		var decision_type = decision.get("type", "unknown")
+		
+		ai_reasoning_label.text = "AI Reasoning:\n" + reasoning_text + "\n\nDecision Type: " + decision_type + "\nConfidence: " + str(confidence * 100) + "%"
 	
 	match decision.get("type", ""):
 		"move_command":
@@ -241,23 +260,30 @@ func _on_drone_collision(obstacle_position: Vector3):
 	
 	# Could add penalty or damage system here
 
-func _on_target_caught():
-	"""Handle successful target capture"""
-	print("Target caught! Simulation successful.")
+func _on_target_neutralized(target_position: Vector3):
+	"""Handle successful target neutralization via shooting"""
+	print("Target neutralized at: ", target_position)
 	
 	# Update UI to show success
 	var status_label = get_node("../UI/StatusPanel/StatusLabel")
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET CAPTURED!\nSimulation Complete - Success!\n\nPress R to restart or ESC to exit"
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET NEUTRALIZED!\nDrone successfully engaged target within 20ft range\nSimulation Complete - Success!\n\nPress R to restart or ESC to exit"
 	
-	# Hide the target to show it was captured (but don't destroy it)
+	# Hide the target to show it was neutralized (but don't destroy it)
 	if target:
 		target.visible = false
 	
 	target_caught.emit()
 	stop_simulation(true)
-	
-	# Don't auto-exit - wait for user input
+
+func _on_shot_fired(from_pos: Vector3, to_pos: Vector3):
+	"""Handle visual effects for shots fired"""
+	print("Shot fired from: ", from_pos, " to: ", to_pos)
+	# Could add visual effects here - muzzle flash, tracer, etc.
+
+func _on_target_caught():
+	"""Legacy capture function - now redirects to neutralization"""
+	_on_target_neutralized(target.position if target else Vector3.ZERO)
 
 func _grid_to_world(grid_pos: Vector2) -> Vector3:
 	"""Convert grid coordinates to world coordinates"""
@@ -284,6 +310,20 @@ func get_simulation_stats() -> Dictionary:
 		"distance_to_target": drone.position.distance_to(target.position) if drone and target else 0.0
 	}
 
+func _add_default_obstacles():
+	"""Add some default obstacles if none found manually"""
+	var obstacle_positions = [
+		Vector2(3, 3),
+		Vector2(5, 2),
+		Vector2(7, 5)
+	]
+	
+	for pos in obstacle_positions:
+		var obstacle = preload("res://scenes/Obstacle.tscn").instantiate()
+		add_child(obstacle)
+		obstacle.position = _grid_to_world(pos)
+		obstacles.append(obstacle)
+
 func restart_simulation():
 	"""Restart the simulation"""
 	print("Restarting simulation...")
@@ -300,6 +340,47 @@ func restart_simulation():
 	
 	await get_tree().create_timer(0.5).timeout
 	start_simulation()
+
+func _find_safe_spawn_position() -> Vector3:
+	"""Find a safe position to spawn the target away from obstacles"""
+	# Try several potential spawn positions
+	var safe_positions = [
+		_grid_to_world(Vector2(7, 7)),   # Further from corner
+		_grid_to_world(Vector2(6, 8)),   # Alternative position
+		_grid_to_world(Vector2(8, 6)),   # Another alternative
+		_grid_to_world(Vector2(5, 7)),   # Even safer
+		_grid_to_world(Vector2(7, 5)),   # Another safe spot
+		_grid_to_world(Vector2(2, 8)),   # Far from drone spawn
+		_grid_to_world(Vector2(8, 2)),   # Corner opposite to drone
+	]
+	
+	# Check each position for safety
+	for pos in safe_positions:
+		if _is_spawn_position_safe(pos):
+			print("Found safe target spawn at: ", pos)
+			return pos
+	
+	# Fallback to a known safe position in the center
+	print("Using fallback target spawn position")
+	return _grid_to_world(Vector2(5, 5))
+
+func _is_spawn_position_safe(test_pos: Vector3) -> bool:
+	"""Check if a spawn position is safe from obstacles"""
+	var safe_distance = 1.5  # Minimum distance from obstacles
+	
+	# Check distance from all obstacles
+	for obstacle in obstacles:
+		if obstacle and is_instance_valid(obstacle):
+			var distance = test_pos.distance_to(obstacle.position)
+			if distance < safe_distance:
+				return false
+	
+	# Check boundaries
+	var min_boundary = -3.5  # Stay away from edges
+	var max_boundary = 2.7
+	
+	return (test_pos.x > min_boundary and test_pos.x < max_boundary and
+			test_pos.z > min_boundary and test_pos.z < max_boundary)
 
 func _input(event):
 	"""Handle input events"""

@@ -2,8 +2,8 @@ extends Node3D
 
 # 3rd Person Camera Controller for following the drone
 
-@export var follow_distance: float = 3.0  # Closer like Fortnite
-@export var follow_height: float = 1.2   # Lower height
+@export var follow_distance: float = 1.5  # Much closer for small drone
+@export var follow_height: float = 0.8   # Lower height for small drone
 @export var follow_speed: float = 10.0   # Faster response
 @export var look_ahead_distance: float = 1.5
 @export var camera_angle: float = 5.0    # Much smaller downward angle
