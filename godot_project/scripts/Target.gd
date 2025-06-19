@@ -42,6 +42,9 @@ func _ready():
 	# Start with some initial velocity to ensure movement
 	velocity = movement_direction * max_speed * 0.5
 	last_position = position
+	
+	# Check for initial overlaps and push away from obstacles
+	call_deferred("_fix_initial_position")
 
 func _check_if_stuck(delta: float):
 	"""Check if target is stuck and force direction change if needed"""
@@ -177,8 +180,14 @@ func _update_autonomous_movement(delta: float):
 	# Avoid boundaries
 	_avoid_boundaries()
 	
+	# Keep target at ground level before movement
+	position.y = 0.0
+	
 	# Move with physics
 	move_and_slide()
+	
+	# Keep target at ground level after movement (prevent floating)
+	position.y = 0.0
 	
 	# Handle collisions (backup in case prediction failed)
 	if get_slide_collision_count() > 0:
@@ -233,7 +242,7 @@ func move_evasively(evasion_direction: Vector3, delta: float):
 	var ground_check = PhysicsRayQueryParameters3D.create(
 		position + Vector3(0, 0.5, 0),  # Start slightly above
 		position + Vector3(0, -0.5, 0), # Check down to ground
-		1  # Ground collision layer
+		8  # Ground collision layer (updated to layer 8)
 	)
 	var ground_result = ground_space_state.intersect_ray(ground_check)
 	if ground_result:
@@ -330,12 +339,13 @@ func _avoid_boundaries():
 
 func _handle_obstacle_collision():
 	"""Handle collision with obstacles - improved to prevent clipping"""
-	print("Target collision with obstacle at: ", position)
-	
 	# Get collision normal and find alternative direction
 	var collision = get_slide_collision(0)
 	var collision_normal = collision.get_normal()
 	var collision_point = collision.get_position()
+	var collider = collision.get_collider()
+	
+	print("Target collision with obstacle: ", collider.name if collider else "unknown", " at: ", position)
 	
 	# Push away from collision point to prevent clipping
 	var pushback_direction = (position - collision_point).normalized()
@@ -407,6 +417,8 @@ func _is_position_safe(test_pos: Vector3) -> bool:
 
 func reset_position(pos: Vector3):
 	"""Reset target to starting position"""
+	# Ensure target is always at ground level
+	pos.y = 0.0
 	position = pos
 	velocity = Vector3.ZERO
 	panic_mode = false
@@ -586,4 +598,41 @@ func _fix_mesh_materials(mesh_instance: MeshInstance3D):
 				# Ensure it's not using transparency blend mode
 				if std_mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 					std_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-					print("Disabled transparency mode for ", mesh_instance.name) 
+					print("Disabled transparency mode for ", mesh_instance.name)
+
+func _fix_initial_position():
+	"""Fix initial position to be at ground level and away from obstacles"""
+	# Force target to ground level immediately
+	position.y = 0.0
+	
+	# Check for horizontal overlaps with obstacles
+	var space_state = get_world_3d().direct_space_state
+	var shape = CapsuleShape3D.new()
+	shape.radius = 0.15  # Slightly larger than target's collision shape
+	shape.height = 0.6
+	
+	var query = PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform.origin = position
+	query.collision_mask = 2  # Only check obstacle layer
+	
+	var results = space_state.intersect_shape(query)
+	
+	if results.size() > 0:
+		# Push away from overlapping obstacles
+		print("Target spawned overlapping obstacles, pushing away...")
+		var pushback = Vector3.ZERO
+		
+		for result in results:
+			var collider = result.get("collider")
+			if collider:
+				var direction = (position - collider.global_position)
+				direction.y = 0  # Keep on ground plane
+				if direction.length() > 0:
+					pushback += direction.normalized()
+		
+		if pushback.length() > 0:
+			position += pushback.normalized() * 0.5  # Push away
+			position.y = 0.0  # Ensure still at ground level
+	
+	print("Target fixed to ground position: ", position) 

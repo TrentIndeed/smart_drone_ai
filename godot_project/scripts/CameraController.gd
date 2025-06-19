@@ -1,15 +1,18 @@
 extends Node3D
 
-# 3rd Person Camera Controller for following the drone
+# Third Person Camera Controller - Follows behind drone based on movement direction
 
-@export var follow_distance: float = 1.5  # Much closer for small drone
-@export var follow_height: float = 0.8   # Lower height for small drone
-@export var follow_speed: float = 10.0   # Faster response
-@export var look_ahead_distance: float = 1.5
-@export var camera_angle: float = 5.0    # Much smaller downward angle
+@export var follow_distance: float = 2.0    # Distance behind drone
+@export var follow_height: float = 0.3      # Height above drone (reduced)
+@export var follow_speed: float = 10.0      # Smooth position following speed
+@export var rotation_speed: float = 6.0     # Smooth rotation following speed
+@export var min_ground_height: float = 1.0  # Minimum height above ground (reduced)
+@export var movement_threshold: float = 0.1  # Minimum movement to update direction
 
 var drone: Node3D
 var camera: Camera3D
+var last_movement_direction: Vector3 = Vector3(0, 0, -1)  # Default facing forward
+var last_drone_position: Vector3 = Vector3.ZERO
 
 func _ready():
 	camera = $Camera3D
@@ -18,50 +21,78 @@ func _ready():
 	drone = get_tree().get_first_node_in_group("drone")
 	if not drone:
 		print("Warning: No drone found for camera to follow")
+	else:
+		print("Movement-based third-person camera locked onto drone")
+		last_drone_position = drone.global_position
 
 func _process(delta):
 	if not drone or not camera:
 		return
 	
-	# Get drone's velocity to determine forward direction
-	var drone_velocity = Vector3.ZERO
-	if drone.has_method("get_velocity"):
-		drone_velocity = drone.get_velocity()
-	elif "velocity" in drone:
-		drone_velocity = drone.velocity
-	var drone_forward = Vector3.FORWARD  # Default forward
+	# Get drone position and calculate movement direction
+	var drone_position = drone.global_position
 	
-	if drone_velocity.length() > 0.1:
-		# Use movement direction as forward
-		drone_forward = drone_velocity.normalized()
-	else:
-		# Use transform forward if not moving
-		drone_forward = -drone.transform.basis.z
+	# Calculate movement direction from velocity or position change
+	var movement_direction = Vector3.ZERO
 	
-	# Calculate camera position behind and above drone (Fortnite/racing style)
-	var camera_offset = -drone_forward * follow_distance + Vector3.UP * follow_height
-	var desired_position = drone.position + camera_offset
+	# Try to get velocity from drone if it's a CharacterBody3D
+	if drone is CharacterBody3D:
+		var drone_velocity = drone.velocity
+		if drone_velocity.length() > movement_threshold:
+			movement_direction = Vector3(drone_velocity.x, 0, drone_velocity.z).normalized()
 	
-	# Smoothly move camera controller to desired position
-	position = position.lerp(desired_position, follow_speed * delta)
+	# Fallback: calculate direction from position change
+	if movement_direction.length() < 0.1:
+		var position_change = drone_position - last_drone_position
+		if position_change.length() > movement_threshold:
+			movement_direction = Vector3(position_change.x, 0, position_change.z).normalized()
 	
-	# Make camera look at drone from its current position (Fortnite style)
-	var camera_world_pos = global_position
-	var look_target = drone.global_position + Vector3.UP * 0.5  # Look at drone center/slightly above
+	# Update movement direction only if drone is actually moving
+	if movement_direction.length() > 0.1:
+		last_movement_direction = movement_direction
 	
-	# Calculate look direction
-	var look_direction = (look_target - camera_world_pos).normalized()
+	# Calculate camera position behind drone based on movement direction
+	var camera_offset = last_movement_direction * -follow_distance + Vector3(0, follow_height, 0)
+	var desired_camera_position = drone_position + camera_offset
 	
-	# Create camera basis looking at drone
-	var camera_basis = Basis.looking_at(look_direction, Vector3.UP)
+	# Ensure camera doesn't go below minimum ground height
+	if desired_camera_position.y < min_ground_height:
+		desired_camera_position.y = min_ground_height
 	
-	# Apply very slight downward tilt (Fortnite has minimal tilt)
-	camera_basis = camera_basis.rotated(camera_basis.x, deg_to_rad(camera_angle))
+	# Smoothly move camera to desired position
+	global_position = global_position.lerp(desired_camera_position, follow_speed * delta)
 	
-	# Set camera transform
-	camera.transform.basis = camera_basis
-	camera.transform.origin = Vector3.ZERO  # Keep camera at controller position
+	# Calculate where camera should look - ahead in movement direction
+	var look_target = drone_position + last_movement_direction * 10.0
+	look_target.y = drone_position.y  # Keep look target at drone's height
+	
+	# Smoothly rotate camera to look in movement direction
+	var current_look_direction = -global_transform.basis.z
+	var target_look_direction = (look_target - global_position).normalized()
+	
+	if target_look_direction.length() > 0.1:
+		# Smooth rotation using look_at with interpolation
+		var target_transform = global_transform.looking_at(look_target, Vector3.UP)
+		global_transform = global_transform.interpolate_with(target_transform, rotation_speed * delta)
+	
+	# Update last position for next frame
+	last_drone_position = drone_position
+	
+	# Debug camera positioning and movement
+	if Engine.get_process_frames() % 60 == 0:  # Print every 60 frames
+		print("MOVEMENT-BASED CAMERA DEBUG:")
+		print("  Drone position: ", drone_position)
+		print("  Movement direction: ", last_movement_direction)
+		print("  Camera position: ", global_position)
+		print("  Look target: ", look_target)
+		print("  Distance to drone: ", global_position.distance_to(drone_position))
+	
+	# Reset local camera transform
+	camera.transform.origin = Vector3.ZERO
+	camera.rotation = Vector3.ZERO
 
 func set_follow_target(target: Node3D):
 	"""Set a new target for the camera to follow"""
-	drone = target 
+	drone = target
+	if drone:
+		last_drone_position = drone.global_position 

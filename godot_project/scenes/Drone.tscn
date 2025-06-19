@@ -7,6 +7,8 @@
 size = Vector3(0.3, 0.15, 0.3)
 
 [node name="Drone" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 2
 script = ExtResource("1_drone")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]

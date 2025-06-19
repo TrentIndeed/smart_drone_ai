@@ -1,10 +1,8 @@
-res://scripts/GameManager.gd
-res://scripts/AIInterface.gd
-res://scripts/Drone.gd
-res://scripts/Obstacle.gd
-res://scripts/Target.gd
 res://default_env.tres
+res://scenes/Main.tscn
+res://scripts/Drone.gd
+res://scripts/GameManager.gd
+res://scripts/Target.gd
+res://scenes/Drone.tscn
 res://scenes/Target.tscn
 res://scripts/CameraController.gd
-res://scenes/Main.tscn
-res://scenes/Drone.tscn

@@ -12,6 +12,8 @@ metallic = 0.0
 size = Vector3(10, 0.1, 10)
 
 [node name="Ground" type="StaticBody3D"]
+collision_layer = 8
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_1")

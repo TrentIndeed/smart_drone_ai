@@ -10,7 +10,7 @@ signal obstacle_hit
 
 @export var grid_size: Vector2 = Vector2(10, 10)  # 10x10 grid
 @export var cell_size: float = 0.8  # 0.8 units per grid cell (scaled down for 3D)
-@export var max_simulation_time: float = 120.0  # 2 minutes max
+@export var max_simulation_time: float = 600.0  # 10 minutes max (extended timeout)
 
 # Game objects
 var drone: Drone
@@ -45,6 +45,11 @@ func _ready():
 	ai_interface.ai_decision_received.connect(_on_ai_decision_received)
 	ai_interface.ai_error_occurred.connect(_on_ai_error)
 	
+	# Initialize UI immediately with proper controls display
+	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	if status_label:
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit\nPress any key to see controls"
+	
 	# Initialize AI reasoning display
 	var ai_reasoning_label = get_node("../UI/AIReasoningPanel/AIReasoningLabel")
 	if ai_reasoning_label:
@@ -56,8 +61,8 @@ func _ready():
 	# Initialize game objects
 	_setup_game_objects()
 	
-	# Start simulation
-	start_simulation()
+	# Start simulation and update UI properly
+	call_deferred("_initialize_and_start")
 
 func _setup_game_objects():
 	"""Initialize drone, target, and obstacles"""
@@ -67,7 +72,9 @@ func _setup_game_objects():
 	# Create drone
 	drone = preload("res://scenes/Drone.tscn").instantiate()
 	add_child(drone)
-	drone.position = _grid_to_world(Vector2(1, 1))
+	# Find a safe spawn position for the drone too
+	var drone_spawn_pos = _find_safe_drone_spawn_position()
+	drone.position = drone_spawn_pos
 	drone.collision_detected.connect(_on_drone_collision)
 	drone.target_shot.connect(_on_target_neutralized)
 	drone.shot_fired.connect(_on_shot_fired)
@@ -84,6 +91,9 @@ func _setup_game_objects():
 	target.caught.connect(_on_target_caught)
 	target.add_to_group("target")
 	print("Target created at: ", target.position)
+	
+	# First add collision shapes to all obstacles
+	_add_collision_to_obstacles()
 	
 	# Create obstacles
 	_generate_obstacles()
@@ -120,6 +130,28 @@ func _generate_obstacles():
 			obstacles.append(obstacle)
 			print("Found obstacle: ", obstacle.name, " at position: ", obstacle.position)
 	
+	# Also add manually placed trees and rocks as obstacles for pathfinding
+	var tree_nodes = []
+	var rock_nodes = []
+	
+	# Find all tree and rock nodes by searching children
+	for child in get_children():
+		if child.name.begins_with("tree_"):
+			tree_nodes.append(child)
+		elif child.name.begins_with("rock_"):
+			rock_nodes.append(child)
+	
+	# Add trees and rocks to obstacles array for collision detection
+	for tree in tree_nodes:
+		obstacles.append(tree)
+		tree.add_to_group("obstacles")  # Add to obstacles group
+		print("Found tree obstacle: ", tree.name, " at position: ", tree.position)
+	
+	for rock in rock_nodes:
+		obstacles.append(rock)
+		rock.add_to_group("obstacles")  # Add to obstacles group
+		print("Found rock obstacle: ", rock.name, " at position: ", rock.position)
+	
 	print("Total obstacles found: ", obstacles.size())
 	
 	# If no obstacles found, add a few programmatically as backup
@@ -143,7 +175,8 @@ func start_simulation():
 		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
 	
 	# Reset positions
-	drone.reset_position(_grid_to_world(Vector2(1, 1)))
+	var drone_spawn_pos = _find_safe_drone_spawn_position()
+	drone.reset_position(drone_spawn_pos)
 	var target_spawn_pos = _find_safe_spawn_position()
 	target_spawn_pos.y = 0.0  # Ensure target is at ground level
 	target.reset_position(target_spawn_pos)
@@ -341,6 +374,32 @@ func restart_simulation():
 	await get_tree().create_timer(0.5).timeout
 	start_simulation()
 
+func _find_safe_drone_spawn_position() -> Vector3:
+	"""Find a safe position to spawn the drone away from obstacles"""
+	# Try several potential spawn positions for drone
+	var safe_positions = [
+		_grid_to_world(Vector2(1, 1)),   # Original spawn position
+		_grid_to_world(Vector2(2, 1)),   # Nearby alternative
+		_grid_to_world(Vector2(1, 2)),   # Another nearby alternative
+		_grid_to_world(Vector2(0, 0)),   # Center-left corner
+		_grid_to_world(Vector2(2, 2)),   # Slightly more central
+		_grid_to_world(Vector2(0, 1)),   # Left edge
+		_grid_to_world(Vector2(1, 0)),   # Bottom edge
+	]
+	
+	# Check each position for safety
+	for pos in safe_positions:
+		pos.y = 0.5  # Set proper flight height for drone
+		if _is_spawn_position_safe(pos):
+			print("Found safe drone spawn at: ", pos)
+			return pos
+	
+	# Fallback to a safe position
+	print("Using fallback drone spawn position")
+	var fallback = _grid_to_world(Vector2(0, 0))
+	fallback.y = 0.5  # Flight height
+	return fallback
+
 func _find_safe_spawn_position() -> Vector3:
 	"""Find a safe position to spawn the target away from obstacles"""
 	# Try several potential spawn positions
@@ -366,21 +425,43 @@ func _find_safe_spawn_position() -> Vector3:
 
 func _is_spawn_position_safe(test_pos: Vector3) -> bool:
 	"""Check if a spawn position is safe from obstacles"""
-	var safe_distance = 1.5  # Minimum distance from obstacles
+	var safe_distance = 2.0  # Increased minimum distance from obstacles
 	
 	# Check distance from all obstacles
 	for obstacle in obstacles:
 		if obstacle and is_instance_valid(obstacle):
 			var distance = test_pos.distance_to(obstacle.position)
 			if distance < safe_distance:
+				print("Position ", test_pos, " too close to obstacle ", obstacle.name, " (distance: ", distance, ")")
 				return false
 	
-	# Check boundaries
-	var min_boundary = -3.5  # Stay away from edges
-	var max_boundary = 2.7
+	# Use physics system to check for overlaps
+	var space_state = get_world_3d().direct_space_state
+	var shape = CapsuleShape3D.new()
+	shape.radius = 0.5
+	shape.height = 1.0
 	
-	return (test_pos.x > min_boundary and test_pos.x < max_boundary and
+	var query = PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform.origin = test_pos
+	query.collision_mask = 0xFFFFFFFF  # Check all collision layers
+	
+	var results = space_state.intersect_shape(query)
+	if results.size() > 0:
+		print("Position ", test_pos, " overlaps with physics bodies: ", results.size(), " objects")
+		return false
+	
+	# Check boundaries with larger margin
+	var min_boundary = -3.0  # Stay further away from edges
+	var max_boundary = 2.2
+	
+	var within_bounds = (test_pos.x > min_boundary and test_pos.x < max_boundary and
 			test_pos.z > min_boundary and test_pos.z < max_boundary)
+	
+	if not within_bounds:
+		print("Position ", test_pos, " outside safe boundaries")
+	
+	return within_bounds
 
 func _input(event):
 	"""Handle input events"""
@@ -408,3 +489,89 @@ func _input(event):
 	elif Input.is_action_just_pressed("ui_accept"):  # Enter key
 		if not simulation_running:
 			start_simulation() 
+
+func _initialize_and_start():
+	"""Initialize the game and update UI properly"""
+	# Update UI to show that initialization is complete
+	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	if status_label:
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: READY TO START\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
+	
+	start_simulation() 
+
+func _add_collision_to_obstacles():
+	"""Add collision shapes to imported 3D models that don't have them"""
+	print("Adding collision shapes to obstacles...")
+	
+	# Find all tree and rock nodes
+	var tree_nodes = []
+	var rock_nodes = []
+	
+	# Search recursively for trees and rocks
+	_find_nodes_by_name(self, "tree_", tree_nodes)
+	_find_nodes_by_name(self, "rock_", rock_nodes)
+	
+	# Add collision to each tree
+	for tree in tree_nodes:
+		_add_static_collision_to_node(tree, Vector3(0.2, 1.0, 0.2))  # Much smaller collision for trees
+	
+	# Add collision to each rock
+	for rock in rock_nodes:
+		_add_static_collision_to_node(rock, Vector3(0.3, 0.3, 0.3))  # Very small collision for rocks
+
+func _find_nodes_by_name(parent: Node, name_pattern: String, result_array: Array):
+	"""Recursively find nodes whose names start with the pattern"""
+	for child in parent.get_children():
+		if child.name.begins_with(name_pattern):
+			result_array.append(child)
+		_find_nodes_by_name(child, name_pattern, result_array)
+
+func _add_static_collision_to_node(node: Node3D, collision_size: Vector3):
+	"""Add StaticBody3D with collision shape to a 3D node"""
+	# Remove any existing collision bodies first
+	for child in node.get_children():
+		if child is StaticBody3D and child.name.ends_with("_CollisionBody"):
+			print("Removing existing collision body: ", child.name)
+			child.queue_free()
+	
+	# Wait a frame for cleanup
+	await get_tree().process_frame
+	
+	print("Adding collision to: ", node.name, " at position: ", node.position)
+	
+	# Create StaticBody3D for collision
+	var static_body = StaticBody3D.new()
+	static_body.name = node.name + "_CollisionBody"
+	
+	# Create collision shape
+	var collision_shape = CollisionShape3D.new()
+	collision_shape.name = "CollisionShape3D"
+	
+	# Create appropriate shape based on the object type
+	var shape
+	if node.name.begins_with("tree_"):
+		# Use capsule shape for trees (better for trunk + branches)
+		shape = CapsuleShape3D.new()
+		shape.radius = collision_size.x
+		shape.height = collision_size.y
+	else:
+		# Use box shape for rocks
+		shape = BoxShape3D.new()
+		shape.size = collision_size
+	
+	collision_shape.shape = shape
+	
+	# Set collision layers and masks for proper interaction
+	static_body.collision_layer = 2  # Layer 2 for obstacles
+	static_body.collision_mask = 0   # Obstacles don't need to detect collisions with others
+	
+	# Add collision shape to static body
+	static_body.add_child(collision_shape)
+	
+	# Add static body to the obstacle node
+	node.add_child(static_body)
+	
+	# Add to obstacles group for navigation
+	node.add_to_group("obstacles")
+	
+	print("Added collision to: ", node.name) 

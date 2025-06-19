@@ -10,7 +10,7 @@ signal shot_fired(from_position: Vector3, to_position: Vector3)
 @export var max_speed: float = 5.0  # units/second - Realistic 2x2ft surveillance drone (scaled down)
 @export var acceleration: float = 8.0  # units/second² - Drone has better acceleration
 @export var friction: float = 0.8
-@export var flight_height: float = 0.5  # Height above ground for flight (10ft proportionally)
+@export var flight_height: float = 0.5  # Lower flight height for better gameplay
 
 # Shooting system
 @export var max_shooting_range: float = 1.0  # Maximum effective range for neutralization (20ft)
@@ -23,7 +23,8 @@ var emergency_mode: bool = false
 var trail_points: Array[Vector3] = []
 var max_trail_length: int = 20
 var collision_cooldown: float = 0.0
-var collision_cooldown_time: float = 0.3
+var collision_cooldown_time: float = 1.0  # Increased cooldown to prevent collision spam
+var just_reset: bool = false  # Prevent collision handling right after reset
 
 # Shooting state
 var shooting_cooldown: float = 0.0
@@ -35,11 +36,20 @@ var last_shot_time: float = 0.0
 func _ready():
 	print("Drone initialized")
 	target_position = position
+	
+	# Set up collision layers for drone
+	collision_layer = 1  # Drone is on layer 1
+	collision_mask = 2   # Only collide with obstacles on layer 2
 
 func _physics_process(delta):
 	# Update collision cooldown
 	if collision_cooldown > 0:
 		collision_cooldown -= delta
+	
+	# Clear just_reset flag after a short delay
+	if just_reset:
+		collision_cooldown = collision_cooldown_time  # Prevent collisions immediately after reset
+		just_reset = false
 	
 	# Update shooting cooldown
 	if shooting_cooldown > 0:
@@ -80,25 +90,43 @@ func _update_movement(delta: float):
 	if desired_velocity.length() < 0.1:
 		velocity *= friction
 	
-	# Maintain flight height - drone now flies low through tree branches
+	# Maintain flight height - drone flies high enough to clear most obstacles
 	position.y = flight_height
 	
-	# Add obstacle avoidance for low-flying drone
-	_avoid_obstacles()
+	# Disable obstacle avoidance - let drone rely on physics collision only
+	# _avoid_obstacles()
 	
 	# Apply boundary checking to drone position
 	position = _clamp_to_world_bounds(position)
 	
-	# Move with collision detection - drone must navigate around tree branches
+	# Move with collision detection - only collide with obstacles at flight height
 	move_and_slide()
 	
-	# Handle collisions with tree branches at low flight height
+	# Only handle collisions with obstacles that are actually at drone's flight height
 	if get_slide_collision_count() > 0 and collision_cooldown <= 0:
 		var collision = get_slide_collision(0)
-		collision_detected.emit(collision.get_position())
-		print("Drone collision with tree branch at: ", collision.get_position())
-		_handle_obstacle_collision()
-		collision_cooldown = collision_cooldown_time
+		var collider = collision.get_collider()
+		var collision_point = collision.get_position()
+		
+		# Debug collision information
+		print("COLLISION DEBUG:")
+		print("  Collider: ", collider.name if collider else "unknown")
+		print("  Collision point: ", collision_point)
+		print("  Drone position: ", position)
+		print("  Distance: ", position.distance_to(collision_point))
+		print("  Collision height: ", collision_point.y)
+		print("  Flight height: ", flight_height)
+		
+		# Only process collision if it's actually close and at flight height
+		var distance_to_collision = position.distance_to(collision_point)
+		if collision_point.y >= flight_height - 0.3 and distance_to_collision < 0.5:
+			collision_detected.emit(collision_point)
+			print("Processing real collision at flight height")
+			_handle_obstacle_collision()
+			collision_cooldown = collision_cooldown_time
+		else:
+			print("Ignoring collision - ground level or too far away")
+	
 
 func _update_shooting_system(delta: float):
 	"""Update the drone's shooting and targeting system"""
@@ -261,96 +289,71 @@ func _update_visual_feedback():
 					material.emission = Color(0.1, 0.2, 0.3, 1)
 
 func _avoid_obstacles():
-	"""Predict and avoid obstacles in drone's path"""
+	"""Predict and avoid only tall obstacles at flight height"""
+	# Only perform avoidance if we're actually moving
+	if velocity.length() < 0.1:
+		return
+	
 	var space_state = get_world_3d().direct_space_state
-	var look_ahead_distance = 1.2  # Increased distance to check ahead
-	var safety_margin = 0.3  # Extra safety margin around obstacles
+	var look_ahead_distance = 1.5  # Look ahead distance
 	
-	# Check multiple directions for obstacles with more comprehensive coverage
-	var check_directions = [
-		velocity.normalized(),  # Current direction
-		velocity.normalized() + Vector3(0.4, 0, 0),  # Right
-		velocity.normalized() + Vector3(-0.4, 0, 0), # Left
-		velocity.normalized() + Vector3(0, 0, 0.4),  # Forward
-		velocity.normalized() + Vector3(0, 0, -0.4), # Back
-		velocity.normalized() + Vector3(0.3, 0, 0.3),  # Right-forward
-		velocity.normalized() + Vector3(-0.3, 0, 0.3), # Left-forward
-		velocity.normalized() + Vector3(0.3, 0, -0.3), # Right-back
-		velocity.normalized() + Vector3(-0.3, 0, -0.3) # Left-back
-	]
+	# Use current movement direction
+	var movement_direction = velocity.normalized()
+	movement_direction.y = 0  # Keep on flight level
 	
-	var avoidance_force = Vector3.ZERO
-	var obstacles_detected = 0
+	# Check only forward direction (simplified)
+	var query = PhysicsRayQueryParameters3D.create(
+		position,
+		position + movement_direction * look_ahead_distance,
+		2  # Only check collision layer 2 (obstacles)
+	)
+	var result = space_state.intersect_ray(query)
 	
-	for direction in check_directions:
-		direction.y = 0  # Keep on flight level
-		direction = direction.normalized()
+	if result:
+		var collision_point = result.position
+		var collider = result.get("collider")
 		
-		var query = PhysicsRayQueryParameters3D.create(
-			position,
-			position + direction * look_ahead_distance,
-			collision_mask
-		)
-		var result = space_state.intersect_ray(query)
-		
-		if result:
-			obstacles_detected += 1
-			# Calculate avoidance force based on distance and direction
-			var distance_to_obstacle = position.distance_to(result.position)
-			var avoidance_strength = (look_ahead_distance - distance_to_obstacle) / look_ahead_distance
-			
-			# Add safety margin - avoid even closer than the collision point
-			avoidance_strength = max(avoidance_strength, safety_margin)
-			
-			# Calculate avoidance direction (perpendicular to obstacle direction)
-			var obstacle_direction = (result.position - position).normalized()
-			obstacle_direction.y = 0
-			var avoid_direction = Vector3(obstacle_direction.z, 0, -obstacle_direction.x)
-			
-			# Accumulate avoidance forces
-			avoidance_force += avoid_direction * avoidance_strength * acceleration * 0.5
-	
-	# Apply accumulated avoidance force
-	if obstacles_detected > 0:
-		velocity += avoidance_force
-		# Reduce forward speed when avoiding obstacles
-		velocity = velocity * 0.8
+		# Only avoid if collision point is at or above flight height (tall obstacle)
+		if collision_point.y >= flight_height - 0.5 and collider:
+			if collider.name.begins_with("tree_") or collider.name.begins_with("rock_") or collider.is_in_group("obstacles"):
+				print("Avoiding tall obstacle: ", collider.name, " at height: ", collision_point.y)
+				
+				# Calculate avoidance direction (perpendicular to obstacle)
+				var obstacle_direction = (collision_point - position).normalized()
+				obstacle_direction.y = 0
+				var avoid_direction = Vector3(obstacle_direction.z, 0, -obstacle_direction.x)
+				
+				# Apply moderate avoidance force
+				velocity += avoid_direction * acceleration * 0.3
+				velocity = velocity * 0.9  # Slight speed reduction
+		else:
+			# Ground level obstacle - drone can fly over it
+			if collider:
+				print("Flying over ground obstacle: ", collider.name, " at height: ", collision_point.y)
 
 func _handle_obstacle_collision():
-	"""Handle collision with tree branches or obstacles"""
+	"""Handle collision with tree branches or obstacles - Simple slide behavior"""
 	if get_slide_collision_count() == 0:
 		return
 	
 	var collision = get_slide_collision(0)
 	var collision_normal = collision.get_normal()
 	var collision_point = collision.get_position()
+	var collider = collision.get_collider()
 	
-	# Calculate stronger bounce away from obstacle
+	print("Drone collision detected with: ", collider.name if collider else "unknown")
+	
+	# Simple bounce away from obstacle - don't overcomplicate
 	var bounce_direction = collision_normal
 	bounce_direction.y = 0  # Keep at flight level
 	bounce_direction = bounce_direction.normalized()
 	
-	# Apply stronger bounce force to prevent sticking
-	velocity = bounce_direction * max_speed * 0.8
+	# Apply moderate bounce to slide around obstacle
+	velocity = velocity.bounce(collision_normal) * 0.8  # Use Godot's built-in bounce with damping
 	
-	# Move away from collision point with more distance to prevent edge clipping
-	var safety_distance = 0.25  # Increased safety distance
-	position += bounce_direction * safety_distance
+	# Slight position adjustment to prevent sticking
+	position += bounce_direction * 0.2
 	position.y = flight_height  # Maintain flight height
-	
-	# Ensure we're not still inside the obstacle
-	var space_state = get_world_3d().direct_space_state
-	var check_query = PhysicsRayQueryParameters3D.create(
-		position,
-		position + bounce_direction * 0.1,
-		collision_mask
-	)
-	var check_result = space_state.intersect_ray(check_query)
-	
-	# If still too close to obstacle, move further away
-	if check_result:
-		position += bounce_direction * 0.2
-		position.y = flight_height
 
 func _find_mesh_instances(node: Node) -> Array[MeshInstance3D]:
 	"""Recursively find all MeshInstance3D nodes in the model"""
@@ -384,6 +387,7 @@ func reset_position(pos: Vector3):
 	velocity = Vector3.ZERO
 	emergency_mode = false
 	trail_points.clear()
+	just_reset = true  # Flag to prevent immediate collision handling
 	print("Drone reset to position: ", pos)
 
 func get_current_stats() -> Dictionary:
@@ -400,4 +404,34 @@ func get_current_stats() -> Dictionary:
 		"in_firing_range": shooting_stats.in_range,
 		"is_aiming": shooting_stats.is_aiming,
 		"ready_to_fire": shooting_stats.ready_to_fire
-	} 
+	}
+
+func _debug_obstacle_detection():
+	"""Debug function to help identify phantom obstacle detections"""
+	if not emergency_mode:  # Only debug when not in emergency
+		return
+		
+	print("=== DRONE OBSTACLE DEBUG ===")
+	print("Drone position: ", position)
+	print("Drone velocity: ", velocity)
+	print("Collision layer: ", collision_layer, " Collision mask: ", collision_mask)
+	
+	# Check what objects are nearby
+	var space_state = get_world_3d().direct_space_state
+	var query = PhysicsShapeQueryParameters3D.new()
+	var shape = SphereShape3D.new()
+	shape.radius = 2.0  # Check within 2 units
+	query.shape = shape
+	query.transform.origin = position
+	query.collision_mask = 0xFFFFFFFF  # Check all layers
+	
+	var results = space_state.intersect_shape(query)
+	print("Nearby objects (within 2 units): ", results.size())
+	
+	for result in results:
+		var collider = result.get("collider")
+		if collider:
+			var distance = position.distance_to(collider.global_position if collider.has_method("global_position") else Vector3.ZERO)
+			print("  - ", collider.name, " (distance: ", distance, ", collision_layer: ", collider.collision_layer if collider.has_method("get") else "N/A", ")")
+	
+	print("=== END DEBUG ===") 
