@@ -45,6 +45,13 @@ func _ready():
 	
 	# Check for initial overlaps and push away from obstacles
 	call_deferred("_fix_initial_position")
+	
+	# Debug animation system status
+	print("Target running animation system status:")
+	print("- RunningModel node exists: ", has_node("RunningModel"))
+	if has_node("RunningModel"):
+		print("- RunningModel children: ", $RunningModel.get_children())
+		print("- Looking for AnimationPlayer in model...")
 
 func _check_if_stuck(delta: float):
 	"""Check if target is stuck and force direction change if needed"""
@@ -100,6 +107,9 @@ func _update_panic_mode(delta: float):
 	
 	# Update visual feedback - now with animation
 	_update_animation()
+	
+	# Fallback: Always ensure target faces movement direction (even without animation)
+	_update_model_orientation()
 	
 	# Update model color if available
 	var running_model = $RunningModel
@@ -193,7 +203,7 @@ func _update_autonomous_movement(delta: float):
 	if get_slide_collision_count() > 0:
 		_handle_obstacle_collision()
 
-func move_evasively(evasion_direction: Vector3, delta: float):
+func move_evasively(evasion_direction: Vector3, _delta: float):
 	"""Move evasively based on drone position"""
 	var current_speed = max_speed
 	
@@ -338,7 +348,7 @@ func _avoid_boundaries():
 		print("Target bounced off boundary at: ", position)
 
 func _handle_obstacle_collision():
-	"""Handle collision with obstacles - improved to prevent clipping"""
+	"""Handle collision with obstacles - improved to prevent clipping and loops"""
 	# Get collision normal and find alternative direction
 	var collision = get_slide_collision(0)
 	var collision_normal = collision.get_normal()
@@ -347,41 +357,57 @@ func _handle_obstacle_collision():
 	
 	print("Target collision with obstacle: ", collider.name if collider else "unknown", " at: ", position)
 	
-	# Push away from collision point to prevent clipping
+	# More aggressive pushback to escape tight spots
 	var pushback_direction = (position - collision_point).normalized()
 	pushback_direction.y = 0  # Keep on ground plane
 	
-	# Move away from obstacle slightly
-	position += pushback_direction * 0.1
+	# Stronger pushback to prevent getting stuck
+	position += pushback_direction * 0.3
 	
-	# Find a new movement direction that avoids the obstacle
-	var avoidance_options = [
-		Vector3(collision_normal.z, 0, -collision_normal.x),  # Perpendicular right
-		Vector3(-collision_normal.z, 0, collision_normal.x),  # Perpendicular left
-		-collision_normal  # Direct bounce back
-	]
+	# If it's the small rock at center, use special escape logic
+	var is_center_rock = (collider and collider.name.begins_with("rock_smallC") and 
+						  collision_point.distance_to(Vector3.ZERO) < 1.0)
 	
-	# Choose the best avoidance direction (one that doesn't lead into other obstacles)
-	var best_direction = avoidance_options[0]
-	for direction in avoidance_options:
-		direction.y = 0
-		direction = direction.normalized()
-		# Simple check - prefer directions that lead toward open space
-		var test_pos = position + direction * 0.5
-		if _is_position_safe(test_pos):
-			best_direction = direction
-			break
-	
-	# Add some randomness to avoid predictable patterns
-	var random_offset = Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3))
-	best_direction = (best_direction + random_offset).normalized()
+	var best_direction
+	if is_center_rock:
+		# For center rock, move directly away from center (0,0,0)
+		print("  Escaping from center rock - moving directly away from origin")
+		best_direction = position.normalized()  # Direction from origin to current position
+		if best_direction.length() < 0.1:
+			# If too close to origin, pick a random direction
+			best_direction = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+		best_direction.y = 0
+		# Move far enough to clear the obstacle
+		position += best_direction * 0.8
+	else:
+		# Normal obstacle avoidance
+		var avoidance_options = [
+			Vector3(collision_normal.z, 0, -collision_normal.x),  # Perpendicular right
+			Vector3(-collision_normal.z, 0, collision_normal.x),  # Perpendicular left
+			-collision_normal  # Direct bounce back
+		]
+		
+		# Choose the best avoidance direction
+		best_direction = avoidance_options[0]
+		for direction in avoidance_options:
+			direction.y = 0
+			direction = direction.normalized()
+			# Simple check - prefer directions that lead toward open space
+			var test_pos = position + direction * 1.0  # Larger test distance
+			if _is_position_safe(test_pos):
+				best_direction = direction
+				break
+		
+		# Add significant randomness to break repeating patterns
+		var random_offset = Vector3(randf_range(-0.5, 0.5), 0, randf_range(-0.5, 0.5))
+		best_direction = (best_direction + random_offset).normalized()
 	
 	# Update movement direction and velocity
 	movement_direction = best_direction
-	velocity = best_direction * velocity.length()
+	velocity = best_direction * max_speed * 0.8  # Reduced speed after collision
 	
 	# Force direction change soon to avoid getting stuck
-	direction_change_timer = randf_range(0.5, 1.0)
+	direction_change_timer = randf_range(0.3, 0.8)  # Shorter timer for faster direction changes
 
 func _find_avoidance_direction(obstacle_normal: Vector3) -> Vector3:
 	"""Find a good direction to avoid an obstacle"""
@@ -461,6 +487,7 @@ func _setup_animation_player():
 	var running_model = $RunningModel
 	if running_model:
 		print("RunningModel found at scale: ", running_model.scale)
+		print("RunningModel scene file path: ", running_model.scene_file_path)
 		
 		# Check for mesh instances and fix materials
 		var mesh_instances = _find_mesh_instances(running_model)
@@ -471,39 +498,145 @@ func _setup_animation_player():
 		
 		animation_player = _find_animation_player(running_model)
 		if animation_player:
-			print("Found AnimationPlayer in running model")
-			print("Available animations: ", animation_player.get_animation_list())
+			print("Found AnimationPlayer in running model at path: ", animation_player.get_path())
+			var anim_list = animation_player.get_animation_list()
+			print("Available animations: ", anim_list)
+			print("Total animation count: ", anim_list.size())
+			
+			# Debug: Print all animation details
+			for i in range(anim_list.size()):
+				var anim_name = anim_list[i]
+				var anim = animation_player.get_animation(anim_name)
+				print("Animation ", i, ": '", anim_name, "' - Length: ", anim.length, "s, Tracks: ", anim.get_track_count())
 			
 			# Wait a frame for everything to be set up properly
 			await get_tree().process_frame
 			
-			# Start the running animation if available
-			if animation_player.has_animation("Take 001"):
-				current_animation = "Take 001"
+			# Try ALL available animations instead of guessing names
+			var animation_found = false
+			
+			# First, try to use any animation that exists
+			if anim_list.size() > 0:
+				current_animation = anim_list[0]
+				animation_found = true
+				print("Using first available animation: ", current_animation)
+			
+			# Also try common names as backup
+			var possible_names = ["Take 001", "mixamo.com", "Take001", "Running", "Run", "Armature|mixamo.com", "Armature|Take 001"]
+			for anim_name in possible_names:
+				if animation_player.has_animation(anim_name):
+					current_animation = anim_name
+					animation_found = true
+					print("Found animation with common name: ", anim_name)
+					break
+			
+			# If no common names found, use first available
+			if not animation_found and anim_list.size() > 0:
+				current_animation = anim_list[0]
+				animation_found = true
+				print("Using first available animation: ", current_animation)
+			
+			# Start the animation
+			if animation_found and current_animation != "":
+				print("Starting animation: ", current_animation)
 				animation_player.play(current_animation)
-				print("Playing running animation: ", current_animation)
-			elif animation_player.has_animation("mixamo.com"):
-				current_animation = "mixamo.com"
-				animation_player.play(current_animation)
-				print("Playing running animation: ", current_animation)
-			elif animation_player.get_animation_list().size() > 0:
-				# Use the first available animation
-				current_animation = animation_player.get_animation_list()[0]
-				animation_player.play(current_animation)
-				print("Playing first available animation: ", current_animation)
-				
-			# Ensure the animation is actually playing
-			if current_animation != "":
 				animation_player.speed_scale = 1.0
+				
 				# Set animation to loop (Godot 4 syntax)
 				if animation_player.has_animation(current_animation):
 					var animation = animation_player.get_animation(current_animation)
 					animation.loop_mode = Animation.LOOP_LINEAR
-				print("Animation setup complete - should be animating now")
+					print("Animation loop mode set to LINEAR")
+				
+				# Verify animation is playing
+				await get_tree().process_frame
+				if animation_player.is_playing():
+					print("SUCCESS: Animation is now playing!")
+					_create_backup_visual_indicators()
+				else:
+					print("WARNING: Animation failed to start - implementing fallback")
+					_implement_animation_fallback()
+			else:
+				print("ERROR: No animations found to play - implementing fallback")
+				_implement_animation_fallback()
 		else:
-			print("No AnimationPlayer found in running model")
+			print("ERROR: No AnimationPlayer found in running model - implementing fallback")
+			print("RunningModel children structure:")
+			_debug_print_node_tree(running_model, 0)
+			_implement_animation_fallback()
 	else:
-		print("No RunningModel node found!")
+		print("ERROR: No RunningModel node found - implementing fallback!")
+		_implement_animation_fallback()
+	
+	# Additional debug: Check if the model itself is visible and working
+	print("=== TARGET MODEL DEBUG ===")
+	print("Target scale: ", scale)
+	print("Target position: ", position)
+	print("Target rotation: ", rotation)
+	if has_node("RunningModel"):
+		var model = $RunningModel
+		print("RunningModel scale: ", model.scale)
+		print("RunningModel position: ", model.position)
+		print("RunningModel visible: ", model.visible)
+		print("RunningModel scene_file_path: ", model.scene_file_path)
+	print("=== END DEBUG ===")
+
+func _implement_animation_fallback():
+	"""Implement visual fallback when animation system fails"""
+	print("Implementing animation fallback - creating enhanced procedural running animation")
+	
+	# Create a more realistic running animation for the model
+	var running_model = $RunningModel
+	if running_model:
+		# Fast running steps - very quick bob to simulate feet hitting ground
+		var bob_tween = create_tween()
+		bob_tween.set_loops()
+		bob_tween.tween_property(running_model, "position:y", 0.1, 0.1)   # Quick up
+		bob_tween.tween_property(running_model, "position:y", -0.02, 0.05) # Quick down (foot contact)
+		bob_tween.tween_property(running_model, "position:y", 0.08, 0.1)   # Quick up again
+		bob_tween.tween_property(running_model, "position:y", 0.0, 0.05)   # Down to normal
+		print("Created enhanced running bob animation for RunningModel")
+		
+		# Running lean - forward lean with slight bounce
+		var lean_tween = create_tween()
+		lean_tween.set_loops()
+		lean_tween.tween_property(running_model, "rotation:x", deg_to_rad(-8), 0.2)   # Lean forward more
+		lean_tween.tween_property(running_model, "rotation:x", deg_to_rad(-4), 0.2)   # Lean back
+		print("Created enhanced running lean animation for RunningModel")
+		
+		# Arm swing simulation - more pronounced side motion
+		var sway_tween = create_tween()
+		sway_tween.set_loops()
+		sway_tween.tween_property(running_model, "rotation:z", deg_to_rad(3), 0.15)   # Right lean
+		sway_tween.tween_property(running_model, "rotation:z", deg_to_rad(-3), 0.15)  # Left lean
+		print("Created enhanced running sway animation for RunningModel")
+		
+		# Scale pulse to show energy/effort
+		var scale_tween = create_tween()
+		scale_tween.set_loops()
+		scale_tween.tween_property(running_model, "scale", Vector3(1.05, 0.95, 1.05), 0.15)
+		scale_tween.tween_property(running_model, "scale", Vector3(0.95, 1.05, 0.95), 0.15)
+		print("Created running scale pulse animation for RunningModel")
+	
+	# Create visual speed indicators around the target
+	_create_backup_visual_indicators()
+	
+	# Set a flag that we're using fallback animation
+	current_animation = "FALLBACK_RUNNING"
+	print("Enhanced fallback running animation active - should look much more like running now!")
+
+func _create_backup_visual_indicators():
+	"""Create visual indicators to show target is running/moving"""
+	# No visual indicators needed - focus on the model animation
+	print("Skipping visual indicators - focusing on model animation")
+
+func _debug_print_node_tree(node: Node, depth: int):
+	"""Recursively print node tree structure for debugging"""
+	var indent = "  ".repeat(depth)
+	print(indent, "- ", node.name, " (", node.get_class(), ")")
+	
+	for child in node.get_children():
+		_debug_print_node_tree(child, depth + 1)
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	"""Recursively find AnimationPlayer in the model"""
@@ -519,7 +652,15 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 
 func _update_animation():
 	"""Update animation based on movement state"""
+	# Handle fallback animation case
+	if current_animation == "FALLBACK_RUNNING":
+		# Using procedural animation fallback - nothing to update
+		return
+		
 	if not animation_player:
+		# Check if we need to re-setup animation player
+		if Engine.get_process_frames() % 60 == 0:  # Check once per second
+			print("Target running animation still not being implemented - no AnimationPlayer found")
 		return
 	
 	# Force animation to play if it's not playing (fix T-pose)
@@ -535,12 +676,6 @@ func _update_animation():
 	elif current_animation != "":
 		# Force animation to start if it's not playing
 		call_deferred("_force_restart_animation")
-	
-	# Face movement direction smoothly
-	if velocity.length() > 0.1:
-		var look_direction = velocity.normalized()
-		var target_rotation = atan2(look_direction.x, look_direction.z)
-		rotation.y = lerp_angle(rotation.y, target_rotation, 0.05)  # Slower turn for smoother look
 
 func _force_restart_animation():
 	"""Force restart animation (called deferred to avoid timing issues)"""
@@ -556,6 +691,15 @@ func _force_restart_animation():
 			animation.loop_mode = Animation.LOOP_LINEAR
 		
 		print("Force restarted animation: ", current_animation)
+	else:
+		print("Cannot restart animation - AnimationPlayer or animation missing")
+
+func _update_model_orientation():
+	"""Ensure target model faces movement direction (works even without animation)"""
+	if velocity.length() > 0.1:
+		var look_direction = velocity.normalized()
+		var target_rotation = atan2(look_direction.x, look_direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation, 0.08)  # Smooth rotation
 
 func _find_mesh_instances(node: Node) -> Array[MeshInstance3D]:
 	"""Recursively find all MeshInstance3D nodes in the model"""

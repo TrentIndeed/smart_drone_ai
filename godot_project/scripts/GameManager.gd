@@ -11,11 +11,13 @@ signal obstacle_hit
 @export var grid_size: Vector2 = Vector2(10, 10)  # 10x10 grid
 @export var cell_size: float = 0.8  # 0.8 units per grid cell (scaled down for 3D)
 @export var max_simulation_time: float = 600.0  # 10 minutes max (extended timeout)
+@export var auto_restart_enabled: bool = true  # Auto-restart when simulation completes
+@export var auto_restart_delay: float = 1.0  # Seconds to wait before auto-restart (reduced for faster restart)
 
 # Game objects
 var drone: Drone
 var target: Target
-var obstacles: Array[Obstacle] = []
+var obstacles: Array[Node3D] = []
 
 # Simulation state
 var simulation_running: bool = false
@@ -46,14 +48,18 @@ func _ready():
 	ai_interface.ai_error_occurred.connect(_on_ai_error)
 	
 	# Initialize UI immediately with proper controls display
-	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 	if status_label:
 		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit\nPress any key to see controls"
+	else:
+		print("Status label not found - UI may not be set up correctly")
 	
 	# Initialize AI reasoning display
-	var ai_reasoning_label = get_node("../UI/AIReasoningPanel/AIReasoningLabel")
+	var ai_reasoning_label = get_node_or_null("../UI/AIReasoningPanel/AIReasoningLabel")
 	if ai_reasoning_label:
 		ai_reasoning_label.text = "AI Reasoning:\nInitializing AI system...\nAnalyzing environment...\nTACTICAL CHALLENGE: Drone must navigate tree branches\nWEAPONS SYSTEM: Engaging within 10ft range only\nTarget is ground-bound - both must avoid obstacles\nPreparing strategic assessment..."
+	else:
+		print("AI reasoning label not found - UI may not be set up correctly")
 	
 	# Wait a frame to ensure any duplicates are cleared
 	await get_tree().process_frame
@@ -92,8 +98,9 @@ func _setup_game_objects():
 	target.add_to_group("target")
 	print("Target created at: ", target.position)
 	
-	# First add collision shapes to all obstacles
-	_add_collision_to_obstacles()
+	# Only add collision shapes if they don't exist (for faster restart)
+	if obstacles.is_empty():
+		await _add_collision_to_obstacles()
 	
 	# Create obstacles
 	_generate_obstacles()
@@ -143,14 +150,16 @@ func _generate_obstacles():
 	
 	# Add trees and rocks to obstacles array for collision detection
 	for tree in tree_nodes:
-		obstacles.append(tree)
-		tree.add_to_group("obstacles")  # Add to obstacles group
-		print("Found tree obstacle: ", tree.name, " at position: ", tree.position)
+		if tree and is_instance_valid(tree):
+			obstacles.append(tree)
+			tree.add_to_group("obstacles")  # Add to obstacles group
+			print("Found tree obstacle: ", tree.name, " at position: ", tree.position)
 	
 	for rock in rock_nodes:
-		obstacles.append(rock)
-		rock.add_to_group("obstacles")  # Add to obstacles group
-		print("Found rock obstacle: ", rock.name, " at position: ", rock.position)
+		if rock and is_instance_valid(rock):
+			obstacles.append(rock)
+			rock.add_to_group("obstacles")  # Add to obstacles group
+			print("Found rock obstacle: ", rock.name, " at position: ", rock.position)
 	
 	print("Total obstacles found: ", obstacles.size())
 	
@@ -160,28 +169,44 @@ func _generate_obstacles():
 		_add_default_obstacles()
 
 func start_simulation():
-	"""Start the hunting simulation"""
+	"""Start the AI simulation"""
 	if simulation_running:
+		print("Simulation already running")
 		return
 	
-	print("Starting hunter drone simulation")
+	print("Starting hunter drone simulation...")
+	
+	# Generate obstacles and add collision
+	_generate_obstacles()
+	await _add_collision_to_obstacles()
+	
+	# Emergency collision scan and fix
+	# Skip emergency scan to prevent performance issues and duplicate collision bodies
+	print("Skipping emergency collision scan - using simplified setup")
+	
+	# Reset existing drone and target positions if they exist, or create them
+	if drone and target:
+		# Reset positions
+		var drone_spawn_pos = _find_safe_drone_spawn_position()
+		drone.reset_position(drone_spawn_pos)
+		var target_spawn_pos = _find_safe_spawn_position()
+		target_spawn_pos.y = 0.0  # Ensure target is at ground level
+		target.reset_position(target_spawn_pos)
+	else:
+		# Create new entities if they don't exist
+		_setup_game_objects()
+	
 	simulation_running = true
 	start_time = Time.get_time_dict_from_system().get("second", 0)
 	simulation_time = 0.0
 	
 	# Update UI to show running state
-	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 	if status_label:
 		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
 	
-	# Reset positions
-	var drone_spawn_pos = _find_safe_drone_spawn_position()
-	drone.reset_position(drone_spawn_pos)
-	var target_spawn_pos = _find_safe_spawn_position()
-	target_spawn_pos.y = 0.0  # Ensure target is at ground level
-	target.reset_position(target_spawn_pos)
-	
 	simulation_started.emit()
+	print("Simulation started successfully!")
 
 func stop_simulation(success: bool = false):
 	"""Stop the simulation"""
@@ -200,7 +225,16 @@ func _process(delta):
 	
 	# Check for timeout
 	if simulation_time > max_simulation_time:
+		print("Simulation timed out after ", max_simulation_time, " seconds")
 		stop_simulation(false)
+		
+		# Schedule auto-restart for timeout case too
+		if auto_restart_enabled:
+			print("Auto-restart scheduled after timeout in ", auto_restart_delay, " seconds")
+			await get_tree().create_timer(auto_restart_delay).timeout
+			if not simulation_running:  # Only restart if still stopped
+				print("Auto-restarting simulation after timeout...")
+				restart_simulation()
 		return
 	
 	# Update AI with current state
@@ -254,7 +288,7 @@ func _on_ai_decision_received(decision: Dictionary):
 	print("AI Decision: ", decision.get("reasoning", "No reasoning provided"))
 	
 	# Update AI reasoning display in UI
-	var ai_reasoning_label = get_node("../UI/AIReasoningPanel/AIReasoningLabel")
+	var ai_reasoning_label = get_node_or_null("../UI/AIReasoningPanel/AIReasoningLabel")
 	if ai_reasoning_label:
 		var reasoning_text = decision.get("reasoning", "No reasoning provided")
 		var confidence = decision.get("confidence", 0.0)
@@ -300,7 +334,10 @@ func _on_target_neutralized(target_position: Vector3):
 	# Update UI to show success
 	var status_label = get_node("../UI/StatusPanel/StatusLabel")
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET NEUTRALIZED!\nDrone successfully engaged target within 20ft range\nSimulation Complete - Success!\n\nPress R to restart or ESC to exit"
+		if auto_restart_enabled:
+			status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET NEUTRALIZED!\nDrone successfully engaged target within 20ft range\nSimulation Complete - Success!\n\nAuto-restarting in " + str(auto_restart_delay) + " seconds..."
+		else:
+			status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET NEUTRALIZED!\nDrone successfully engaged target within 20ft range\nSimulation Complete - Success!\n\nPress R to restart or ESC to exit"
 	
 	# Hide the target to show it was neutralized (but don't destroy it)
 	if target:
@@ -308,6 +345,14 @@ func _on_target_neutralized(target_position: Vector3):
 	
 	target_caught.emit()
 	stop_simulation(true)
+	
+	# Schedule auto-restart if enabled
+	if auto_restart_enabled:
+		print("Auto-restart scheduled in ", auto_restart_delay, " seconds")
+		await get_tree().create_timer(auto_restart_delay).timeout
+		if not simulation_running:  # Only restart if still stopped
+			print("Auto-restarting simulation...")
+			restart_simulation()
 
 func _on_shot_fired(from_pos: Vector3, to_pos: Vector3):
 	"""Handle visual effects for shots fired"""
@@ -476,13 +521,13 @@ func _input(event):
 			print("Pausing simulation")
 			stop_simulation(false)
 			# Update UI to show paused state
-			var status_label = get_node("../UI/StatusPanel/StatusLabel")
+			var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 			if status_label:
 				status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: PAUSED\nPress Space to resume, R to restart, ESC to exit"
 		else:
 			print("Resuming simulation")
 			# Update UI to show running state
-			var status_label = get_node("../UI/StatusPanel/StatusLabel")
+			var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 			if status_label:
 				status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nControls: R to restart, Space to pause/resume, ESC to exit\nCamera: 3rd Person Drone View"
 			start_simulation()
@@ -493,7 +538,7 @@ func _input(event):
 func _initialize_and_start():
 	"""Initialize the game and update UI properly"""
 	# Update UI to show that initialization is complete
-	var status_label = get_node("../UI/StatusPanel/StatusLabel")
+	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 	if status_label:
 		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: READY TO START\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
 	
@@ -501,43 +546,123 @@ func _initialize_and_start():
 
 func _add_collision_to_obstacles():
 	"""Add collision shapes to imported 3D models that don't have them"""
-	print("Adding collision shapes to obstacles...")
+	print("=== ADDING COLLISION SHAPES TO OBSTACLES ===")
 	
-	# Find all tree and rock nodes
+	# Find all tree and rock nodes - use a set to avoid duplicates
+	var processed_nodes = {}
 	var tree_nodes = []
 	var rock_nodes = []
 	
-	# Search recursively for trees and rocks
-	_find_nodes_by_name(self, "tree_", tree_nodes)
-	_find_nodes_by_name(self, "rock_", rock_nodes)
+	# Search only direct children to avoid duplicates
+	for child in get_children():
+		var node_id = child.get_instance_id()
+		if node_id in processed_nodes:
+			continue
+		processed_nodes[node_id] = true
+		
+		if child.name.begins_with("tree_"):
+			tree_nodes.append(child)
+		elif child.name.begins_with("rock_"):
+			rock_nodes.append(child)
+	
+	print("Found obstacles:")
+	print("  Trees: ", tree_nodes.size())
+	print("  Rocks: ", rock_nodes.size()) 
 	
 	# Add collision to each tree
 	for tree in tree_nodes:
-		_add_static_collision_to_node(tree, Vector3(0.2, 1.0, 0.2))  # Much smaller collision for trees
+		if tree and is_instance_valid(tree):
+			await _add_static_collision_to_node(tree, Vector3(0.2, 1.0, 0.2))  # Small collision for trees
 	
 	# Add collision to each rock
 	for rock in rock_nodes:
-		_add_static_collision_to_node(rock, Vector3(0.3, 0.3, 0.3))  # Very small collision for rocks
+		if rock and is_instance_valid(rock):
+			await _add_static_collision_to_node(rock, Vector3(0.3, 0.3, 0.3))  # Small collision for rocks
 
-func _find_nodes_by_name(parent: Node, name_pattern: String, result_array: Array):
-	"""Recursively find nodes whose names start with the pattern"""
-	for child in parent.get_children():
-		if child.name.begins_with(name_pattern):
-			result_array.append(child)
-		_find_nodes_by_name(child, name_pattern, result_array)
+func _verify_all_obstacles_have_collision():
+	"""Verify that all obstacles have proper collision setup"""
+	print("=== VERIFYING OBSTACLE COLLISION SETUP ===")
+	
+	var total_obstacles = 0
+	var obstacles_with_collision = 0
+	
+	# Check all nodes with obstacle-like names or in obstacles group
+	var all_potential_obstacles = []
+	_find_nodes_by_name(get_tree().root, "tree_", all_potential_obstacles)
+	_find_nodes_by_name(get_tree().root, "rock_", all_potential_obstacles)
+	
+	# Add group members
+	var group_obstacles = get_tree().get_nodes_in_group("obstacles")
+	for obstacle in group_obstacles:
+		if obstacle not in all_potential_obstacles:
+			all_potential_obstacles.append(obstacle)
+	
+	for obstacle in all_potential_obstacles:
+		# Skip invalid/freed nodes
+		if not obstacle or not is_instance_valid(obstacle):
+			continue
+			
+		total_obstacles += 1
+		var has_collision = false
+		
+		# Check if obstacle itself is a StaticBody3D
+		if obstacle is StaticBody3D:
+			has_collision = true
+			print("  ✓ ", obstacle.name, " - is StaticBody3D (layer: ", obstacle.collision_layer, ")")
+		else:
+			# Check if it has a collision body child
+			for child in obstacle.get_children():
+				if child is StaticBody3D and child.name.ends_with("_CollisionBody"):
+					has_collision = true
+					print("  ✓ ", obstacle.name, " - has collision body (layer: ", child.collision_layer, ")")
+					break
+		
+		if has_collision:
+			obstacles_with_collision += 1
+		else:
+			print("  ✗ ", obstacle.name, " - NO COLLISION DETECTED!")
+			# Try to add collision to missing ones
+			await _add_static_collision_to_node(obstacle, Vector3(0.4, 0.4, 0.4))
+			obstacles_with_collision += 1
+	
+	print("=== COLLISION VERIFICATION COMPLETE ===")
+	print("Total obstacles: ", total_obstacles)
+	print("Obstacles with collision: ", obstacles_with_collision)
+	print("Coverage: ", (obstacles_with_collision * 100.0 / total_obstacles) if total_obstacles > 0 else 100.0, "%")
 
 func _add_static_collision_to_node(node: Node3D, collision_size: Vector3):
 	"""Add StaticBody3D with collision shape to a 3D node"""
-	# Remove any existing collision bodies first
+	# Safety check - ensure node is valid and not freed
+	if not node or not is_instance_valid(node):
+		print("  Skipping invalid/freed node")
+		return
+	
+	# Skip if this node is already a StaticBody3D with proper collision layer
+	if node is StaticBody3D:
+		if node.collision_layer == 2:
+			print("  ", node.name, " already has collision layer 2")
+			return
+		else:
+			print("  ", node.name, " is StaticBody3D but wrong layer (", node.collision_layer, "), fixing...")
+			node.collision_layer = 2
+			node.collision_mask = 0
+			return
+	
+	# Check if collision body already exists
+	var existing_collision = null
 	for child in node.get_children():
 		if child is StaticBody3D and child.name.ends_with("_CollisionBody"):
-			print("Removing existing collision body: ", child.name)
-			child.queue_free()
+			existing_collision = child
+			break
 	
-	# Wait a frame for cleanup
-	await get_tree().process_frame
+	if existing_collision:
+		# Just ensure it has the right settings
+		existing_collision.collision_layer = 2
+		existing_collision.collision_mask = 0
+		print("  ", node.name, " already has collision body")
+		return
 	
-	print("Adding collision to: ", node.name, " at position: ", node.position)
+	print("  Adding collision to: ", node.name, " at position: ", node.position)
 	
 	# Create StaticBody3D for collision
 	var static_body = StaticBody3D.new()
@@ -555,7 +680,7 @@ func _add_static_collision_to_node(node: Node3D, collision_size: Vector3):
 		shape.radius = collision_size.x
 		shape.height = collision_size.y
 	else:
-		# Use box shape for rocks
+		# Use box shape for rocks and other obstacles
 		shape = BoxShape3D.new()
 		shape.size = collision_size
 	
@@ -574,4 +699,137 @@ func _add_static_collision_to_node(node: Node3D, collision_size: Vector3):
 	# Add to obstacles group for navigation
 	node.add_to_group("obstacles")
 	
-	print("Added collision to: ", node.name) 
+	print("  ✓ Added collision to: ", node.name, " (layer: ", static_body.collision_layer, ")")
+
+func _find_nodes_by_name(parent: Node, name_pattern: String, result_array: Array):
+	"""Recursively find nodes whose names start with the pattern"""
+	for child in parent.get_children():
+		if child.name.begins_with(name_pattern):
+			result_array.append(child)
+		_find_nodes_by_name(child, name_pattern, result_array)
+
+func _emergency_scan_and_fix_all_obstacles():
+	"""Emergency scan to find and fix all obstacles that might not have collision"""
+	print("=== EMERGENCY OBSTACLE COLLISION SCAN ===")
+	
+	var fixed_count = 0
+	var total_scanned = 0
+	
+	# Get all potential obstacles from the entire scene
+	var all_nodes = []
+	_get_all_nodes_recursive(get_tree().root, all_nodes)
+	
+	for node in all_nodes:
+		# Skip invalid/freed nodes
+		if not node or not is_instance_valid(node):
+			continue
+			
+		if node.name.begins_with("tree_") or node.name.begins_with("rock_") or node.is_in_group("obstacles"):
+			total_scanned += 1
+			print("Scanning obstacle: ", node.name, " (type: ", node.get_class(), ")")
+			
+			var needs_fix = false
+			var collision_info = "None"
+			
+			# Check what type of collision setup this node has
+			if node is StaticBody3D:
+				if node.collision_layer != 2:
+					needs_fix = true
+					collision_info = "StaticBody3D on wrong layer (" + str(node.collision_layer) + ")"
+				else:
+					collision_info = "StaticBody3D on correct layer"
+			else:
+				# Check if it has collision body children
+				var has_collision_child = false
+				for child in node.get_children():
+					if child is StaticBody3D and child.collision_layer == 2:
+						has_collision_child = true
+						collision_info = "Has correct collision child"
+						break
+					elif child is StaticBody3D:
+						child.collision_layer = 2
+						child.collision_mask = 0
+						has_collision_child = true
+						collision_info = "Fixed collision child layer"
+						needs_fix = true
+						break
+				
+				if not has_collision_child:
+					needs_fix = true
+					collision_info = "No collision body found"
+			
+			print("  Status: ", collision_info)
+			
+			if needs_fix:
+				print("  🔧 Fixing obstacle collision...")
+				await _force_add_collision_to_obstacle(node)
+				fixed_count += 1
+				print("  ✅ Fixed!")
+	
+	print("=== EMERGENCY SCAN COMPLETE ===")
+	print("Total obstacles scanned: ", total_scanned)
+	print("Obstacles fixed: ", fixed_count)
+	print("Success rate: ", ((total_scanned - fixed_count) * 100.0 / total_scanned) if total_scanned > 0 else 100.0, "% already correct")
+
+func _get_all_nodes_recursive(node: Node, result_array: Array):
+	"""Recursively get all nodes in the scene tree"""
+	result_array.append(node)
+	for child in node.get_children():
+		_get_all_nodes_recursive(child, result_array)
+
+func _force_add_collision_to_obstacle(obstacle_node: Node3D):
+	"""Force add collision to an obstacle, removing any existing faulty collision"""
+	# Safety check - ensure node is valid and not freed
+	if not obstacle_node or not is_instance_valid(obstacle_node):
+		print("    Skipping invalid/freed obstacle node")
+		return
+	
+	print("    Force-fixing collision for: ", obstacle_node.name)
+	
+	# If it's already a StaticBody3D, just fix the layer
+	if obstacle_node is StaticBody3D:
+		obstacle_node.collision_layer = 2
+		obstacle_node.collision_mask = 0
+		print("    Fixed StaticBody3D layer")
+		return
+	
+	# Remove any existing collision bodies that might be faulty
+	var children_to_remove = []
+	for child in obstacle_node.get_children():
+		if child is StaticBody3D:
+			children_to_remove.append(child)
+	
+	for child in children_to_remove:
+		print("    Removing existing collision body: ", child.name)
+		child.queue_free()
+	
+	await get_tree().process_frame
+	
+	# Create new collision body
+	var static_body = StaticBody3D.new()
+	static_body.name = obstacle_node.name + "_ForceCollision"
+	static_body.collision_layer = 2
+	static_body.collision_mask = 0
+	
+	# Create collision shape based on obstacle type
+	var collision_shape = CollisionShape3D.new()
+	var shape
+	
+	if obstacle_node.name.begins_with("tree_"):
+		shape = CapsuleShape3D.new()
+		shape.radius = 0.25
+		shape.height = 1.2
+		print("    Created capsule collision for tree")
+	else:
+		shape = BoxShape3D.new()
+		shape.size = Vector3(0.4, 0.4, 0.4)
+		print("    Created box collision for rock/obstacle")
+	
+	collision_shape.shape = shape
+	static_body.add_child(collision_shape)
+	obstacle_node.add_child(static_body)
+	
+	# Ensure it's in obstacles group
+	obstacle_node.add_to_group("obstacles")
+	
+	print("    ✅ Force-added collision successfully!")

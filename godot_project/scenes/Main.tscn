@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cis5vwb328213"]
+[gd_scene load_steps=11 format=3 uid="uid://cis5vwb328213"]
 
 [ext_resource type="Script" uid="uid://ckibdm6xehsqe" path="res://scripts/GameManager.gd" id="1_h4n2p"]
 [ext_resource type="PackedScene" path="res://scenes/Ground.tscn" id="2_ground"]
@@ -6,6 +6,14 @@
 [ext_resource type="PackedScene" uid="uid://bcnrnauln4qwj" path="res://assets/tiles/Models/DAE format/rock_smallC.dae" id="3_c01mt"]
 [ext_resource type="Script" uid="uid://cgdfud7xovi6v" path="res://scripts/CameraController.gd" id="3_camera"]
 [ext_resource type="PackedScene" uid="uid://v2214krpn6u3" path="res://assets/tiles/Models/FBX format/rock_tallJ.fbx" id="4_nxtc6"]
+[ext_resource type="Script" uid="uid://bc7n6ss0g1uj4" path="res://addons/zylann.hterrain/hterrain.gd" id="5_q8u5g"]
+[ext_resource type="Resource" uid="uid://3oioevqjm725" path="res://maps/map1/data.hterrain" id="6_lhr70"]
+[ext_resource type="Script" uid="uid://coj4n5kan6fhc" path="res://addons/zylann.hterrain/hterrain_texture_set.gd" id="7_wp0k4"]
+
+[sub_resource type="Resource" id="Resource_bjd11"]
+script = ExtResource("7_wp0k4")
+mode = 0
+textures = [[], []]
 
 [node name="Main" type="Node3D"]
 
@@ -59,6 +67,25 @@ transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, -3.64407, 0, -3.8113
 
 [node name="rock_tallJ5" parent="GameManager" instance=ExtResource("4_nxtc6")]
 transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, -0.856837, 0.0162244, 2.84081)
+
+[node name="HTerrain" type="Node3D" parent="GameManager"]
+script = ExtResource("5_q8u5g")
+_terrain_data = ExtResource("6_lhr70")
+chunk_size = 32
+collision_enabled = true
+collision_layer = 1
+collision_mask = 1
+shader_type = "Classic4Lite"
+custom_shader = null
+custom_globalmap_shader = null
+texture_set = SubResource("Resource_bjd11")
+render_layers = 1
+cast_shadow = 1
+shader_params/u_ground_uv_scale = 20
+shader_params/u_depth_blending = true
+shader_params/u_triplanar = null
+shader_params/u_tile_reduction = null
+metadata/_custom_type_script = "uid://bc7n6ss0g1uj4"
 
 [node name="CameraController" type="Node3D" parent="."]
 script = ExtResource("3_camera")

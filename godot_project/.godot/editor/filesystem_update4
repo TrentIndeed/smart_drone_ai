@@ -1,8 +1,6 @@
 res://default_env.tres
 res://scenes/Main.tscn
 res://scripts/Drone.gd
+res://scripts/CameraController.gd
 res://scripts/GameManager.gd
 res://scripts/Target.gd
-res://scenes/Drone.tscn
-res://scenes/Target.tscn
-res://scripts/CameraController.gd

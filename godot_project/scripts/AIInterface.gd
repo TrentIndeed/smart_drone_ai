@@ -191,7 +191,7 @@ func _simulate_ai_response(environment_data: Dictionary):
 	
 	ai_decision_received.emit(simulated_response)
 
-func _on_ai_response_received(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray):
+func _on_ai_response_received(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
 	"""Handle AI response from HTTP request"""
 	if response_code != 200:
 		ai_error_occurred.emit("HTTP error: " + str(response_code))
