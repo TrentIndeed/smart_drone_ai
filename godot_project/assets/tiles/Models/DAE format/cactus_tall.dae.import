@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/cactus_tall.dae-d60e9a338fd6144491bf27de6d877
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

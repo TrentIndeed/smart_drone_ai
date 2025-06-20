@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/fence_gate.dae-14368a2cec1de062ae66c8d9c3f1ee
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

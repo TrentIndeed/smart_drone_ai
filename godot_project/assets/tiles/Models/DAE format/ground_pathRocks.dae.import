@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_pathRocks.dae-80c1bb15763b00f690a6f3fe
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

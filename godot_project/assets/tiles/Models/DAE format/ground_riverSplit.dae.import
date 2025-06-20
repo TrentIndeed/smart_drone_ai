@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_riverSplit.dae-ff0bcfdb44a8b92a2770bc1
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

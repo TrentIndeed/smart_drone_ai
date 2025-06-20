@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/tree_fat.dae-7bdcf4472deb34407db85d50d2761b72
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

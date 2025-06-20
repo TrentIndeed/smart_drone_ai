@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/bridge_woodRoundNarrow.dae-d6073d4b32dc69f993
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

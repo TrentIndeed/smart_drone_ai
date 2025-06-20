@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_riverSide.dae-52d22fa42f904c577819b527
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

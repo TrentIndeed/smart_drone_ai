@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/bridge_stoneRoundNarrow.dae-5ab2019db1c8e78e3
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

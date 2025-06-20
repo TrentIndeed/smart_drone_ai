@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/cliff_stepsCorner_stone.dae-4e6b31fc3e901165a
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/pot_large.dae-24a416bf1325f74b19b7a7e77399538
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

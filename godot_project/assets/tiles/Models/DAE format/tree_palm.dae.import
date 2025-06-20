@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/tree_palm.dae-fa8e614a3747b2fe461b2daba2864df
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

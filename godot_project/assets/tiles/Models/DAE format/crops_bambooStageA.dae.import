@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crops_bambooStageA.dae-7b790848ce005db579cc48
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

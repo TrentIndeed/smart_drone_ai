@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/log.dae-80e97f57481f42d80618fb07b9f03a37.scn"
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

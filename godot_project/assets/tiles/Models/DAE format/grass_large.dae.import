@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/grass_large.dae-312c110eba3ee453d4158d1ef7c5a
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

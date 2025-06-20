@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/stone_tallF.dae-de7c99aeff58faa4fef8d0a98d025
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

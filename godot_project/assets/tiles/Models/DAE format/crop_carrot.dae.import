@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crop_carrot.dae-f4416e14468411f1543777bf00f36
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

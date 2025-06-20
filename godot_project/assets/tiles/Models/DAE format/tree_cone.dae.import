@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/tree_cone.dae-fdc7defa624970bb1f2a6f69ef1f78c
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

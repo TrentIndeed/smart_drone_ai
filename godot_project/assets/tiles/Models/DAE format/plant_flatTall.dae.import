@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/plant_flatTall.dae-377aade8b2a28ad4c1a68c0a91
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/mushroom_tan.dae-4d5bbf716e52ccf49c6bd97fabd2
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/flower_redC.dae-81f5f5a8b687528cf544b86660281
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

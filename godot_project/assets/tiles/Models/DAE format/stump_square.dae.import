@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/stump_square.dae-6c2beb9f216f6ffa5fdda54667dd
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

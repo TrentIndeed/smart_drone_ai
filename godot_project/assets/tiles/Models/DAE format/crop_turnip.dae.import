@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crop_turnip.dae-7640b3e1a841234a68e30d150c128
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -1,91 +1,13 @@
-[gd_scene load_steps=11 format=3 uid="uid://cis5vwb328213"]
+[gd_scene load_steps=4 format=3 uid="uid://cis5vwb328213"]
 
 [ext_resource type="Script" uid="uid://ckibdm6xehsqe" path="res://scripts/GameManager.gd" id="1_h4n2p"]
 [ext_resource type="PackedScene" path="res://scenes/Ground.tscn" id="2_ground"]
-[ext_resource type="PackedScene" uid="uid://b8c1yw3mplae6" path="res://assets/tiles/Models/DAE format/tree_fat.dae" id="2_rarhs"]
-[ext_resource type="PackedScene" uid="uid://bcnrnauln4qwj" path="res://assets/tiles/Models/DAE format/rock_smallC.dae" id="3_c01mt"]
 [ext_resource type="Script" uid="uid://cgdfud7xovi6v" path="res://scripts/CameraController.gd" id="3_camera"]
-[ext_resource type="PackedScene" uid="uid://v2214krpn6u3" path="res://assets/tiles/Models/FBX format/rock_tallJ.fbx" id="4_nxtc6"]
-[ext_resource type="Script" uid="uid://bc7n6ss0g1uj4" path="res://addons/zylann.hterrain/hterrain.gd" id="5_q8u5g"]
-[ext_resource type="Resource" uid="uid://3oioevqjm725" path="res://maps/map1/data.hterrain" id="6_lhr70"]
-[ext_resource type="Script" uid="uid://coj4n5kan6fhc" path="res://addons/zylann.hterrain/hterrain_texture_set.gd" id="7_wp0k4"]
-
-[sub_resource type="Resource" id="Resource_bjd11"]
-script = ExtResource("7_wp0k4")
-mode = 0
-textures = [[], []]
 
 [node name="Main" type="Node3D"]
 
 [node name="GameManager" type="Node3D" parent="."]
 script = ExtResource("1_h4n2p")
-
-[node name="tree_fat" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.52, 0, 1.605)
-
-[node name="tree_fat2" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.548, 1.11759e-08, -1.779)
-
-[node name="tree_fat3" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.04976, -0.0276871, -0.226526)
-
-[node name="tree_fat4" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.83, 0, 3.446)
-
-[node name="tree_fat5" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.19871, 0, 2.31503)
-
-[node name="tree_fat6" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.52, 0, -2.99637)
-
-[node name="tree_fat7" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.00522, 0, -3.53046)
-
-[node name="tree_fat8" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.95634, 0, 0.841716)
-
-[node name="tree_fat9" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.679814, 0, 1.605)
-
-[node name="tree_fat10" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.47571, 0, 3.87512)
-
-[node name="tree_fat11" parent="GameManager" instance=ExtResource("2_rarhs")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.52, 0, -0.552623)
-
-[node name="rock_smallC" parent="GameManager" instance=ExtResource("3_c01mt")]
-transform = Transform3D(2.7, 0, 0, 0, 2.7, 0, 0, 0, 2.7, 0, 0, 0)
-
-[node name="rock_tallJ" parent="GameManager" instance=ExtResource("4_nxtc6")]
-transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, 1.74049, 0, -2.57146)
-
-[node name="rock_tallJ3" parent="GameManager" instance=ExtResource("4_nxtc6")]
-transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, -4.05838, 0, 0.0321608)
-
-[node name="rock_tallJ4" parent="GameManager" instance=ExtResource("4_nxtc6")]
-transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, -3.64407, 0, -3.81133)
-
-[node name="rock_tallJ5" parent="GameManager" instance=ExtResource("4_nxtc6")]
-transform = Transform3D(1.53, 0, 0, 0, 1.53, 0, 0, 0, 1.53, -0.856837, 0.0162244, 2.84081)
-
-[node name="HTerrain" type="Node3D" parent="GameManager"]
-script = ExtResource("5_q8u5g")
-_terrain_data = ExtResource("6_lhr70")
-chunk_size = 32
-collision_enabled = true
-collision_layer = 1
-collision_mask = 1
-shader_type = "Classic4Lite"
-custom_shader = null
-custom_globalmap_shader = null
-texture_set = SubResource("Resource_bjd11")
-render_layers = 1
-cast_shadow = 1
-shader_params/u_ground_uv_scale = 20
-shader_params/u_depth_blending = true
-shader_params/u_triplanar = null
-shader_params/u_tile_reduction = null
-metadata/_custom_type_script = "uid://bc7n6ss0g1uj4"
 
 [node name="CameraController" type="Node3D" parent="."]
 script = ExtResource("3_camera")
@@ -126,7 +48,8 @@ grow_vertical = 2
 text = "Hunter Drone AI - LangGraph Edition
 Status: Initializing...
 Controls: R to restart, Space to pause/resume, ESC to exit
-Camera: 3rd Person Drone View"
+Camera: 3rd Person Drone View
+Environment: Using GLB Objects with Auto-Collision"
 
 [node name="AIReasoningPanel" type="Panel" parent="UI"]
 anchors_preset = 1
@@ -149,4 +72,5 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "AI Reasoning:
 Simulated AI active
-Strategic interception mode"
+Strategic interception mode
+Environment: Procedural GLB objects"

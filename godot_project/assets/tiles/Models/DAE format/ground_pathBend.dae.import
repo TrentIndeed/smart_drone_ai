@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_pathBend.dae-1065a873f6fb95f12de41df5e
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

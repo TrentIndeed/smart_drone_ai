@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/rock_largeB.dae-509264990e271061f3042f1e23375
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

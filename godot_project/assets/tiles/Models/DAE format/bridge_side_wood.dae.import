@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/bridge_side_wood.dae-4cb13822b735759e6babbe32
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

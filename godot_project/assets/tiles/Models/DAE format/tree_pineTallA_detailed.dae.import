@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/tree_pineTallA_detailed.dae-53aeddc495c4d3136
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/cliff_cornerTop_stone.dae-384011e65b079f1c965
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

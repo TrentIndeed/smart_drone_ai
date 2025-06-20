@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/fence_bendCenter.dae-2d0efa0eef0dcfc6d5e5f9e0
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crops_wheatStageB.dae-3b9b6ea1cab6fe6fc6adefe
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

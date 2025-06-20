@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/tree_blocks_fall.dae-344bf60c91796b59b59a7545
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

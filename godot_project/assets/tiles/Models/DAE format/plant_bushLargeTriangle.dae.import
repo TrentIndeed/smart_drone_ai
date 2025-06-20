@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/plant_bushLargeTriangle.dae-cd4b475e16f3d43bb
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

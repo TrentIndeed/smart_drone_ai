@@ -13,11 +13,15 @@ signal obstacle_hit
 @export var max_simulation_time: float = 600.0  # 10 minutes max (extended timeout)
 @export var auto_restart_enabled: bool = true  # Auto-restart when simulation completes
 @export var auto_restart_delay: float = 1.0  # Seconds to wait before auto-restart (reduced for faster restart)
+@export var debug_collision_shapes: bool = false  # Show collision shape wireframes (Toggle with 'C' key)
 
 # Game objects
 var drone: Drone
 var target: Target
 var obstacles: Array[Node3D] = []
+var glb_spawner: GLBObjectSpawner
+var simple_spawner: SimpleObjectSpawner
+var use_simple_spawner: bool = false  # Use GLBObjectSpawner for better collision
 
 # Simulation state
 var simulation_running: bool = false
@@ -50,7 +54,7 @@ func _ready():
 	# Initialize UI immediately with proper controls display
 	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit\nPress any key to see controls"
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, C to toggle collision debug, ESC to exit\nPress any key to see controls"
 	else:
 		print("Status label not found - UI may not be set up correctly")
 	
@@ -71,9 +75,51 @@ func _ready():
 	call_deferred("_initialize_and_start")
 
 func _setup_game_objects():
-	"""Initialize drone, target, and obstacles"""
+	"""Initialize drone, target, and GLB obstacles"""
 	# Clear any existing entities first
 	_clear_existing_entities()
+	
+	# Create spawner (GLB or simple fallback)
+	if use_simple_spawner:
+		print("Using simple spawner as fallback...")
+		if not simple_spawner:
+			print("Creating simple spawner...")
+			var SimpleSpawnerScript = load("res://scripts/SimpleObjectSpawner.gd")
+			if SimpleSpawnerScript:
+				simple_spawner = SimpleSpawnerScript.new()
+				simple_spawner.name = "SimpleSpawner"
+				simple_spawner.debug_collision_shapes = debug_collision_shapes  # Pass debug flag
+				add_child(simple_spawner)
+				simple_spawner.objects_spawned.connect(_on_simple_objects_spawned)
+				print("Simple spawner created successfully with debug: ", debug_collision_shapes)
+			else:
+				print("ERROR: Could not load SimpleObjectSpawner script!")
+				return
+		
+		# Spawn simple objects
+		print("Calling simple spawn_objects()...")
+		simple_spawner.spawn_objects()
+		print("Simple spawn_objects() call completed")
+	else:
+		# Create GLB spawner if it doesn't exist
+		if not glb_spawner:
+			print("Creating GLB spawner...")
+			var GLBSpawnerScript = load("res://scripts/GLBObjectSpawner.gd")
+			if GLBSpawnerScript:
+				glb_spawner = GLBSpawnerScript.new()
+				glb_spawner.name = "GLBSpawner"
+				glb_spawner.debug_collision_shapes = debug_collision_shapes  # Pass debug flag
+				add_child(glb_spawner)
+				glb_spawner.objects_spawned.connect(_on_glb_objects_spawned)
+				print("GLB spawner created successfully with debug: ", debug_collision_shapes)
+			else:
+				print("ERROR: Could not load GLBObjectSpawner script!")
+				return
+		
+		# Spawn GLB objects first
+		print("Calling spawn_objects()...")
+		glb_spawner.spawn_objects()
+		print("spawn_objects() call completed")
 	
 	# Create drone
 	drone = preload("res://scenes/Drone.tscn").instantiate()
@@ -97,13 +143,6 @@ func _setup_game_objects():
 	target.caught.connect(_on_target_caught)
 	target.add_to_group("target")
 	print("Target created at: ", target.position)
-	
-	# Only add collision shapes if they don't exist (for faster restart)
-	if obstacles.is_empty():
-		await _add_collision_to_obstacles()
-	
-	# Create obstacles
-	_generate_obstacles()
 
 func _clear_existing_entities():
 	"""Clear any existing game entities"""
@@ -117,56 +156,35 @@ func _clear_existing_entities():
 	for existing_target in existing_targets:
 		existing_target.queue_free()
 	
+	# Clear GLB objects if spawner exists
+	if glb_spawner:
+		glb_spawner.clear_objects()
+	
+	# Clear simple objects if spawner exists
+	if simple_spawner:
+		simple_spawner.clear_objects()
+	
 	# Clear obstacles array and remove obstacle nodes
 	for obstacle in obstacles:
 		if is_instance_valid(obstacle):
 			obstacle.queue_free()
 	obstacles.clear()
 
-func _generate_obstacles():
-	"""Collect manually placed obstacles from the scene"""
-	# Clear any existing obstacles
-	obstacles.clear()
-	
-	# Find all nodes in the obstacles group (manually placed)
-	var obstacle_nodes = get_tree().get_nodes_in_group("obstacles")
-	
-	for obstacle in obstacle_nodes:
-		# Only add obstacles that are children of this GameManager or Main scene
-		if obstacle.get_parent() == self or obstacle.get_parent() == get_parent():
-			obstacles.append(obstacle)
-			print("Found obstacle: ", obstacle.name, " at position: ", obstacle.position)
-	
-	# Also add manually placed trees and rocks as obstacles for pathfinding
-	var tree_nodes = []
-	var rock_nodes = []
-	
-	# Find all tree and rock nodes by searching children
-	for child in get_children():
-		if child.name.begins_with("tree_"):
-			tree_nodes.append(child)
-		elif child.name.begins_with("rock_"):
-			rock_nodes.append(child)
-	
-	# Add trees and rocks to obstacles array for collision detection
-	for tree in tree_nodes:
-		if tree and is_instance_valid(tree):
-			obstacles.append(tree)
-			tree.add_to_group("obstacles")  # Add to obstacles group
-			print("Found tree obstacle: ", tree.name, " at position: ", tree.position)
-	
-	for rock in rock_nodes:
-		if rock and is_instance_valid(rock):
-			obstacles.append(rock)
-			rock.add_to_group("obstacles")  # Add to obstacles group
-			print("Found rock obstacle: ", rock.name, " at position: ", rock.position)
-	
-	print("Total obstacles found: ", obstacles.size())
-	
-	# If no obstacles found, add a few programmatically as backup
-	if obstacles.size() == 0:
-		print("No manually placed obstacles found - adding some programmatically")
-		_add_default_obstacles()
+func _on_glb_objects_spawned(count: int):
+	"""Callback when GLB objects are spawned"""
+	print("GLB objects spawned: ", count)
+	# Update obstacles array with spawned GLB objects
+	if glb_spawner:
+		obstacles = glb_spawner.get_spawned_objects()
+
+func _on_simple_objects_spawned(count: int):
+	"""Callback when simple objects are spawned"""
+	print("Simple objects spawned: ", count)
+	# Update obstacles array with spawned simple objects
+	if simple_spawner:
+		obstacles = simple_spawner.get_spawned_objects()
+
+# Old obstacle generation removed - now using GLB spawner
 
 func start_simulation():
 	"""Start the AI simulation"""
@@ -176,13 +194,8 @@ func start_simulation():
 	
 	print("Starting hunter drone simulation...")
 	
-	# Generate obstacles and add collision
-	_generate_obstacles()
-	await _add_collision_to_obstacles()
-	
-	# Emergency collision scan and fix
-	# Skip emergency scan to prevent performance issues and duplicate collision bodies
-	print("Skipping emergency collision scan - using simplified setup")
+	# GLB objects are spawned in _setup_game_objects() now
+	print("Using GLB objects for obstacles")
 	
 	# Reset existing drone and target positions if they exist, or create them
 	if drone and target:
@@ -388,19 +401,7 @@ func get_simulation_stats() -> Dictionary:
 		"distance_to_target": drone.position.distance_to(target.position) if drone and target else 0.0
 	}
 
-func _add_default_obstacles():
-	"""Add some default obstacles if none found manually"""
-	var obstacle_positions = [
-		Vector2(3, 3),
-		Vector2(5, 2),
-		Vector2(7, 5)
-	]
-	
-	for pos in obstacle_positions:
-		var obstacle = preload("res://scenes/Obstacle.tscn").instantiate()
-		add_child(obstacle)
-		obstacle.position = _grid_to_world(pos)
-		obstacles.append(obstacle)
+# _add_default_obstacles method removed - using GLB spawner now
 
 func restart_simulation():
 	"""Restart the simulation"""
@@ -533,7 +534,31 @@ func _input(event):
 			start_simulation()
 	elif Input.is_action_just_pressed("ui_accept"):  # Enter key
 		if not simulation_running:
-			start_simulation() 
+			start_simulation()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_C:  # C key to toggle collision debug
+		debug_collision_shapes = !debug_collision_shapes
+		print("Collision shape debug: ", "ON" if debug_collision_shapes else "OFF")
+		
+		# Update spawner debug setting
+		if simple_spawner:
+			simple_spawner.debug_collision_shapes = debug_collision_shapes
+		if glb_spawner:
+			glb_spawner.debug_collision_shapes = debug_collision_shapes
+		
+		# Recreate objects with new debug setting
+		_refresh_collision_debug()
+
+func _refresh_collision_debug():
+	"""Refresh collision debug visualization"""
+	print("Refreshing collision debug visualization...")
+	
+	# Clear and respawn objects with debug visualization
+	if simple_spawner:
+		simple_spawner.clear_objects()
+		simple_spawner.spawn_objects()
+	elif glb_spawner:
+		glb_spawner.clear_objects()
+		glb_spawner.spawn_objects()
 
 func _initialize_and_start():
 	"""Initialize the game and update UI properly"""
@@ -544,292 +569,4 @@ func _initialize_and_start():
 	
 	start_simulation() 
 
-func _add_collision_to_obstacles():
-	"""Add collision shapes to imported 3D models that don't have them"""
-	print("=== ADDING COLLISION SHAPES TO OBSTACLES ===")
-	
-	# Find all tree and rock nodes - use a set to avoid duplicates
-	var processed_nodes = {}
-	var tree_nodes = []
-	var rock_nodes = []
-	
-	# Search only direct children to avoid duplicates
-	for child in get_children():
-		var node_id = child.get_instance_id()
-		if node_id in processed_nodes:
-			continue
-		processed_nodes[node_id] = true
-		
-		if child.name.begins_with("tree_"):
-			tree_nodes.append(child)
-		elif child.name.begins_with("rock_"):
-			rock_nodes.append(child)
-	
-	print("Found obstacles:")
-	print("  Trees: ", tree_nodes.size())
-	print("  Rocks: ", rock_nodes.size()) 
-	
-	# Add collision to each tree
-	for tree in tree_nodes:
-		if tree and is_instance_valid(tree):
-			await _add_static_collision_to_node(tree, Vector3(0.2, 1.0, 0.2))  # Small collision for trees
-	
-	# Add collision to each rock
-	for rock in rock_nodes:
-		if rock and is_instance_valid(rock):
-			await _add_static_collision_to_node(rock, Vector3(0.3, 0.3, 0.3))  # Small collision for rocks
-
-func _verify_all_obstacles_have_collision():
-	"""Verify that all obstacles have proper collision setup"""
-	print("=== VERIFYING OBSTACLE COLLISION SETUP ===")
-	
-	var total_obstacles = 0
-	var obstacles_with_collision = 0
-	
-	# Check all nodes with obstacle-like names or in obstacles group
-	var all_potential_obstacles = []
-	_find_nodes_by_name(get_tree().root, "tree_", all_potential_obstacles)
-	_find_nodes_by_name(get_tree().root, "rock_", all_potential_obstacles)
-	
-	# Add group members
-	var group_obstacles = get_tree().get_nodes_in_group("obstacles")
-	for obstacle in group_obstacles:
-		if obstacle not in all_potential_obstacles:
-			all_potential_obstacles.append(obstacle)
-	
-	for obstacle in all_potential_obstacles:
-		# Skip invalid/freed nodes
-		if not obstacle or not is_instance_valid(obstacle):
-			continue
-			
-		total_obstacles += 1
-		var has_collision = false
-		
-		# Check if obstacle itself is a StaticBody3D
-		if obstacle is StaticBody3D:
-			has_collision = true
-			print("  ✓ ", obstacle.name, " - is StaticBody3D (layer: ", obstacle.collision_layer, ")")
-		else:
-			# Check if it has a collision body child
-			for child in obstacle.get_children():
-				if child is StaticBody3D and child.name.ends_with("_CollisionBody"):
-					has_collision = true
-					print("  ✓ ", obstacle.name, " - has collision body (layer: ", child.collision_layer, ")")
-					break
-		
-		if has_collision:
-			obstacles_with_collision += 1
-		else:
-			print("  ✗ ", obstacle.name, " - NO COLLISION DETECTED!")
-			# Try to add collision to missing ones
-			await _add_static_collision_to_node(obstacle, Vector3(0.4, 0.4, 0.4))
-			obstacles_with_collision += 1
-	
-	print("=== COLLISION VERIFICATION COMPLETE ===")
-	print("Total obstacles: ", total_obstacles)
-	print("Obstacles with collision: ", obstacles_with_collision)
-	print("Coverage: ", (obstacles_with_collision * 100.0 / total_obstacles) if total_obstacles > 0 else 100.0, "%")
-
-func _add_static_collision_to_node(node: Node3D, collision_size: Vector3):
-	"""Add StaticBody3D with collision shape to a 3D node"""
-	# Safety check - ensure node is valid and not freed
-	if not node or not is_instance_valid(node):
-		print("  Skipping invalid/freed node")
-		return
-	
-	# Skip if this node is already a StaticBody3D with proper collision layer
-	if node is StaticBody3D:
-		if node.collision_layer == 2:
-			print("  ", node.name, " already has collision layer 2")
-			return
-		else:
-			print("  ", node.name, " is StaticBody3D but wrong layer (", node.collision_layer, "), fixing...")
-			node.collision_layer = 2
-			node.collision_mask = 0
-			return
-	
-	# Check if collision body already exists
-	var existing_collision = null
-	for child in node.get_children():
-		if child is StaticBody3D and child.name.ends_with("_CollisionBody"):
-			existing_collision = child
-			break
-	
-	if existing_collision:
-		# Just ensure it has the right settings
-		existing_collision.collision_layer = 2
-		existing_collision.collision_mask = 0
-		print("  ", node.name, " already has collision body")
-		return
-	
-	print("  Adding collision to: ", node.name, " at position: ", node.position)
-	
-	# Create StaticBody3D for collision
-	var static_body = StaticBody3D.new()
-	static_body.name = node.name + "_CollisionBody"
-	
-	# Create collision shape
-	var collision_shape = CollisionShape3D.new()
-	collision_shape.name = "CollisionShape3D"
-	
-	# Create appropriate shape based on the object type
-	var shape
-	if node.name.begins_with("tree_"):
-		# Use capsule shape for trees (better for trunk + branches)
-		shape = CapsuleShape3D.new()
-		shape.radius = collision_size.x
-		shape.height = collision_size.y
-	else:
-		# Use box shape for rocks and other obstacles
-		shape = BoxShape3D.new()
-		shape.size = collision_size
-	
-	collision_shape.shape = shape
-	
-	# Set collision layers and masks for proper interaction
-	static_body.collision_layer = 2  # Layer 2 for obstacles
-	static_body.collision_mask = 0   # Obstacles don't need to detect collisions with others
-	
-	# Add collision shape to static body
-	static_body.add_child(collision_shape)
-	
-	# Add static body to the obstacle node
-	node.add_child(static_body)
-	
-	# Add to obstacles group for navigation
-	node.add_to_group("obstacles")
-	
-	print("  ✓ Added collision to: ", node.name, " (layer: ", static_body.collision_layer, ")")
-
-func _find_nodes_by_name(parent: Node, name_pattern: String, result_array: Array):
-	"""Recursively find nodes whose names start with the pattern"""
-	for child in parent.get_children():
-		if child.name.begins_with(name_pattern):
-			result_array.append(child)
-		_find_nodes_by_name(child, name_pattern, result_array)
-
-func _emergency_scan_and_fix_all_obstacles():
-	"""Emergency scan to find and fix all obstacles that might not have collision"""
-	print("=== EMERGENCY OBSTACLE COLLISION SCAN ===")
-	
-	var fixed_count = 0
-	var total_scanned = 0
-	
-	# Get all potential obstacles from the entire scene
-	var all_nodes = []
-	_get_all_nodes_recursive(get_tree().root, all_nodes)
-	
-	for node in all_nodes:
-		# Skip invalid/freed nodes
-		if not node or not is_instance_valid(node):
-			continue
-			
-		if node.name.begins_with("tree_") or node.name.begins_with("rock_") or node.is_in_group("obstacles"):
-			total_scanned += 1
-			print("Scanning obstacle: ", node.name, " (type: ", node.get_class(), ")")
-			
-			var needs_fix = false
-			var collision_info = "None"
-			
-			# Check what type of collision setup this node has
-			if node is StaticBody3D:
-				if node.collision_layer != 2:
-					needs_fix = true
-					collision_info = "StaticBody3D on wrong layer (" + str(node.collision_layer) + ")"
-				else:
-					collision_info = "StaticBody3D on correct layer"
-			else:
-				# Check if it has collision body children
-				var has_collision_child = false
-				for child in node.get_children():
-					if child is StaticBody3D and child.collision_layer == 2:
-						has_collision_child = true
-						collision_info = "Has correct collision child"
-						break
-					elif child is StaticBody3D:
-						child.collision_layer = 2
-						child.collision_mask = 0
-						has_collision_child = true
-						collision_info = "Fixed collision child layer"
-						needs_fix = true
-						break
-				
-				if not has_collision_child:
-					needs_fix = true
-					collision_info = "No collision body found"
-			
-			print("  Status: ", collision_info)
-			
-			if needs_fix:
-				print("  🔧 Fixing obstacle collision...")
-				await _force_add_collision_to_obstacle(node)
-				fixed_count += 1
-				print("  ✅ Fixed!")
-	
-	print("=== EMERGENCY SCAN COMPLETE ===")
-	print("Total obstacles scanned: ", total_scanned)
-	print("Obstacles fixed: ", fixed_count)
-	print("Success rate: ", ((total_scanned - fixed_count) * 100.0 / total_scanned) if total_scanned > 0 else 100.0, "% already correct")
-
-func _get_all_nodes_recursive(node: Node, result_array: Array):
-	"""Recursively get all nodes in the scene tree"""
-	result_array.append(node)
-	for child in node.get_children():
-		_get_all_nodes_recursive(child, result_array)
-
-func _force_add_collision_to_obstacle(obstacle_node: Node3D):
-	"""Force add collision to an obstacle, removing any existing faulty collision"""
-	# Safety check - ensure node is valid and not freed
-	if not obstacle_node or not is_instance_valid(obstacle_node):
-		print("    Skipping invalid/freed obstacle node")
-		return
-	
-	print("    Force-fixing collision for: ", obstacle_node.name)
-	
-	# If it's already a StaticBody3D, just fix the layer
-	if obstacle_node is StaticBody3D:
-		obstacle_node.collision_layer = 2
-		obstacle_node.collision_mask = 0
-		print("    Fixed StaticBody3D layer")
-		return
-	
-	# Remove any existing collision bodies that might be faulty
-	var children_to_remove = []
-	for child in obstacle_node.get_children():
-		if child is StaticBody3D:
-			children_to_remove.append(child)
-	
-	for child in children_to_remove:
-		print("    Removing existing collision body: ", child.name)
-		child.queue_free()
-	
-	await get_tree().process_frame
-	
-	# Create new collision body
-	var static_body = StaticBody3D.new()
-	static_body.name = obstacle_node.name + "_ForceCollision"
-	static_body.collision_layer = 2
-	static_body.collision_mask = 0
-	
-	# Create collision shape based on obstacle type
-	var collision_shape = CollisionShape3D.new()
-	var shape
-	
-	if obstacle_node.name.begins_with("tree_"):
-		shape = CapsuleShape3D.new()
-		shape.radius = 0.25
-		shape.height = 1.2
-		print("    Created capsule collision for tree")
-	else:
-		shape = BoxShape3D.new()
-		shape.size = Vector3(0.4, 0.4, 0.4)
-		print("    Created box collision for rock/obstacle")
-	
-	collision_shape.shape = shape
-	static_body.add_child(collision_shape)
-	obstacle_node.add_child(static_body)
-	
-	# Ensure it's in obstacles group
-	obstacle_node.add_to_group("obstacles")
-	
-	print("    ✅ Force-added collision successfully!")
+# All old collision methods removed - GLB objects handle collision automatically

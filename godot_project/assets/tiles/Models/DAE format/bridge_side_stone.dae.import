@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/bridge_side_stone.dae-e8046d748be3059a840e2a1
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

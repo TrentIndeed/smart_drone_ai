@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/stone_smallTopA.dae-e158fadcd56a0f7a8a84813b4
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

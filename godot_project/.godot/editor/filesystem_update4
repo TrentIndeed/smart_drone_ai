@@ -1,6 +1,8 @@
 res://default_env.tres
 res://scenes/Main.tscn
-res://scripts/Drone.gd
-res://scripts/CameraController.gd
+res://scripts/DAECollisionImporter.gd
+res://scripts/SimpleObjectSpawner.gd
 res://scripts/GameManager.gd
-res://scripts/Target.gd
+res://scripts/GLBObjectSpawner.gd
+res://addons/GLB format/tree.glb.res
+res://scripts/GLBCollisionChecker.gd

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crops_cornStageD.dae-9e81b72a7a81766ecd3bbaef
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/lily_small.dae-82d8f95bd12d93b26f48cd1b269d13
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

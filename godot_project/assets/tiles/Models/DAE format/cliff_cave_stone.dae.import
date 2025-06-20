@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/cliff_cave_stone.dae-7724dd156b56da390f9d32f5
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/crops_dirtDoubleRowCorner.dae-3daffb90358c76e
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

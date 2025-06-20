@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_pathEnd.dae-e4523b74cfb3c18a640cb5e617
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0

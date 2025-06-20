@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/ground_riverCross.dae-d1b0c61f46a5839e9f0a775
 
 [params]
 
-nodes/root_type=""
+nodes/root_type="Node3D"
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0
