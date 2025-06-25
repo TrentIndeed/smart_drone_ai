@@ -1,223 +1,423 @@
 extends Node
 
-# AIInterface - Handles communication between Godot and Python LangGraph agent
-# This singleton manages the bridge between the game and AI agent
+# AI Interface for communicating with external AI agent
+# Handles HTTP requests and translates commands to drone actions
 
-signal ai_decision_received(decision: Dictionary)
-signal ai_error_occurred(error: String)
-
-@export var python_script_path: String = "../agent/main.py"
-@export var decision_interval: float = 0.5
-@export var debug_mode: bool = true
-
-var python_process: int
-var is_ai_running: bool = false
-var last_decision_time: float = 0.0
-var current_drone_pos: Vector3
-var current_target_pos: Vector3
-var current_obstacles: Array[Vector3] = []
-
-# HTTP server for communication (alternative to subprocess)
-var http_request: HTTPRequest
+var http_server: TCPServer
+var clients: Array = []
+var drone_controller: Node = null
+var ai_bridge_controller: Node = null
+var port: int = 8080
 
 func _ready():
-	print("AI Interface initialized")
-	http_request = HTTPRequest.new()
-	http_request.name = "HTTPRequest"
-	add_child(http_request)
-	http_request.request_completed.connect(_on_ai_response_received)
+	print("AIInterface initializing...")
 	
-	# Try to start the AI agent
-	start_ai_agent()
-
-func start_ai_agent():
-	"""Start the Python AI agent process"""
-	if is_ai_running:
-		print("AI agent already running")
+	# Add to group for easy finding
+	add_to_group("ai_interface")
+	
+	# Find the drone controller with retry logic
+	await _find_drone_controller()
+	
+	if not drone_controller:
+		print("ERROR: No drone found in 'drones' group!")
 		return
 	
-	print("Starting AI agent...")
-	# Note: In production, you might want to start a separate HTTP server
-	# or use TCP sockets for communication
-	is_ai_running = true
+	print("Found drone controller: ", drone_controller.name)
+	
+	# Look for AI bridge controller
+	ai_bridge_controller = get_tree().get_first_node_in_group("ai_bridge")
+	if ai_bridge_controller:
+		print("Found AI bridge controller: ", ai_bridge_controller.name)
+	else:
+		print("No AI bridge controller found")
+	
+	# Start HTTP server
+	http_server = TCPServer.new()
+	var result = http_server.listen(port)
+	if result == OK:
+		print("AI Interface server started on port ", port)
+	else:
+		print("Failed to start AI Interface server: ", result)
+	
+	# Connect to drone signals for event reporting
+	if drone_controller:
+		# Connect aerodynamic drone signals
+		if drone_controller.has_signal("collision_detected"):
+			drone_controller.collision_detected.connect(_on_collision_detected)
+		if drone_controller.has_signal("target_reached"):
+			drone_controller.target_reached.connect(_on_target_reached)
+		if drone_controller.has_signal("flight_mode_changed"):
+			drone_controller.flight_mode_changed.connect(_on_flight_mode_changed)
+		if drone_controller.has_signal("emergency_activated"):
+			drone_controller.emergency_activated.connect(_on_emergency_activated)
+		if drone_controller.has_signal("shot_fired"):
+			drone_controller.shot_fired.connect(_on_shot_fired)
 
-func stop_ai_agent():
-	"""Stop the AI agent process"""
-	if not is_ai_running:
-		return
+func _process(_delta):
+	# Accept new connections
+	if http_server and http_server.is_connection_available():
+		var client = http_server.take_connection()
+		clients.append(client)
+		print("New AI client connected")
 	
-	print("Stopping AI agent...")
-	# Clean shutdown logic here
-	is_ai_running = false
+	# Process existing connections
+	for i in range(clients.size() - 1, -1, -1):
+		var client = clients[i]
+		if client.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			clients.remove_at(i)
+			continue
+		
+		if client.get_available_bytes() > 0:
+			var request = client.get_utf8_string(client.get_available_bytes())
+			_handle_http_request(client, request)
 
-func update_environment(drone_pos: Vector3, target_pos: Vector3, obstacles: Array[Vector3]):
-	"""Update the AI agent with current environment state"""
-	current_drone_pos = drone_pos
-	current_target_pos = target_pos
-	current_obstacles = obstacles
+func _handle_http_request(client: StreamPeerTCP, request: String):
+	"""Handle incoming HTTP request from AI agent"""
+	print("Received AI request: ", request.substr(0, 200), "...")
 	
-	# Only send updates at specified intervals
-	var current_time = Time.get_time_dict_from_system()
-	var time_since_last = current_time.get("second", 0) - last_decision_time
+	var response_data = {}
+	var status_code = 200
 	
-	if time_since_last >= decision_interval:
-		_send_environment_update()
-		last_decision_time = current_time.get("second", 0)
+	# Parse HTTP request
+	var lines = request.split("\n")
+	if lines.size() == 0:
+		response_data = {"error": "Empty request"}
+		status_code = 400
+	else:
+		var request_line = lines[0]
+		var parts = request_line.split(" ")
+		
+		if parts.size() < 2:
+			response_data = {"error": "Invalid request format"}
+			status_code = 400
+		else:
+			var method = parts[0]
+			var path = parts[1]
+			
+			# Extract JSON body if present
+			var body = ""
+			var body_start = request.find("\r\n\r\n")
+			if body_start != -1:
+				body = request.substr(body_start + 4)
+			
+			# Route the request
+			if method == "GET" and path == "/status":
+				response_data = _get_comprehensive_status()
+			elif method == "POST" and path == "/command":
+				response_data = _process_command(body)
+			elif method == "GET" and path == "/health":
+				response_data = {"status": "healthy", "timestamp": Time.get_unix_time_from_system()}
+			else:
+				response_data = {"error": "Endpoint not found"}
+				status_code = 404
+	
+	# Send HTTP response
+	_send_http_response(client, response_data, status_code)
 
-func _send_environment_update():
-	"""Send environment update to AI agent"""
-	if not is_ai_running:
-		return
+func _send_http_response(client: StreamPeerTCP, data: Dictionary, status_code: int = 200):
+	"""Send HTTP response to client"""
+	var json_string = JSON.stringify(data)
+	var response = "HTTP/1.1 " + str(status_code) + " OK\r\n"
+	response += "Content-Type: application/json\r\n"
+	response += "Content-Length: " + str(json_string.length()) + "\r\n"
+	response += "Access-Control-Allow-Origin: *\r\n"
+	response += "\r\n"
+	response += json_string
 	
-	var environment_data = {
-		"type": "environment_update",
-		"drone_position": [_world_to_grid_x(current_drone_pos.x), _world_to_grid_z(current_drone_pos.z)],
-		"target_position": [_world_to_grid_x(current_target_pos.x), _world_to_grid_z(current_target_pos.z)],
-		"obstacles": _format_obstacles(current_obstacles),
-		"shooting_range": _calculate_shooting_range(),
-		"timestamp": Time.get_time_dict_from_system()
-	}
-	
-	if debug_mode:
-		print("Sending environment update: ", environment_data)
-	
-	# For now, simulate AI response
-	# In production, this would send to the Python agent
-	_simulate_ai_response(environment_data)
+	client.put_data(response.to_utf8_buffer())
 
-func _format_obstacles(obstacles: Array[Vector3]) -> Array:
-	"""Format obstacles for AI consumption with type information"""
-	var formatted = []
-	var obstacle_nodes = get_tree().get_nodes_in_group("obstacles")
+func _get_comprehensive_status() -> Dictionary:
+	"""Get comprehensive drone and environment status"""
+	if not drone_controller:
+		return {"error": "No drone controller available"}
 	
-	for i in range(obstacles.size()):
-		var obstacle_data = {
-			"position": [_world_to_grid_x(obstacles[i].x), _world_to_grid_z(obstacles[i].z)],
-			"blocks_drone": false,  # Drone can fly over obstacles
-			"blocks_target": true,  # Target is ground-bound
-			"type": "unknown"
+	# Get aerodynamic drone status
+	var drone_status = {}
+	if drone_controller.has_method("get_flight_status"):
+		drone_status = drone_controller.get_flight_status()
+	else:
+		# Fallback basic status
+		drone_status = {
+			"position": drone_controller.global_position,
+			"velocity": Vector3.ZERO,
+			"flight_mode": "unknown",
+			"emergency_mode": false
 		}
-		
-		# Try to get obstacle type from the node if available
-		if i < obstacle_nodes.size():
-			var obstacle_node = obstacle_nodes[i]
-			if obstacle_node.has_method("get_obstacle_info"):
-				var info = obstacle_node.get_obstacle_info()
-				obstacle_data["type"] = info.get("type", "unknown")
-			elif "obstacle_type" in obstacle_node:
-				obstacle_data["type"] = obstacle_node.obstacle_type
-		
-		formatted.append(obstacle_data)
 	
-	return formatted
-
-func _world_to_grid_x(world_x: float) -> float:
-	"""Convert world X coordinate to grid coordinate"""
-	return world_x / 0.8 + 5.0  # 0.8 is cell_size, 5.0 is half of 10x10 grid
-
-func _world_to_grid_z(world_z: float) -> float:
-	"""Convert world Z coordinate to grid coordinate"""
-	return world_z / 0.8 + 5.0  # 0.8 is cell_size, 5.0 is half of 10x10 grid
-
-func _calculate_shooting_range() -> Dictionary:
-	"""Calculate current shooting range status"""
-	var distance = current_drone_pos.distance_to(current_target_pos)
-	var max_range = 1.0  # Match drone's max_shooting_range (20ft)
-	var optimal_range = 0.6  # Match drone's optimal_shooting_range (12ft)
+	# Get navigation status
+	var nav_status = {}
+	if ai_bridge_controller and ai_bridge_controller.has_method("get_navigation_status"):
+		nav_status = ai_bridge_controller.get_navigation_status()
+	
+	# Get shooting system status
+	var shooting_status = {}
+	if drone_controller.has_method("get_shooting_status"):
+		shooting_status = drone_controller.get_shooting_status()
+	
+	# Get environment information
+	var environment = _get_environment_info()
 	
 	return {
-		"distance": distance,
-		"in_range": distance <= max_range,
-		"optimal_range": distance <= optimal_range,
-		"max_range": max_range,
-		"range_percentage": (distance / max_range) * 100.0
+		"drone": drone_status,
+		"navigation": nav_status,
+		"shooting": shooting_status,
+		"environment": environment,
+		"timestamp": Time.get_unix_time_from_system()
 	}
 
-func _simulate_ai_response(environment_data: Dictionary):
-	"""Simulate AI response for testing purposes"""
-	# This is a placeholder - in production, this would come from the Python agent
-	await get_tree().create_timer(0.1).timeout  # Simulate processing time
-	
-	# Calculate interception point (move towards where target will be)
-	var drone_grid = environment_data["drone_position"]
-	var target_grid = environment_data["target_position"]
-	
-	# Calculate distance and direction
-	var direction_x = target_grid[0] - drone_grid[0]
-	var direction_z = target_grid[1] - drone_grid[1]
-	var distance = sqrt(direction_x * direction_x + direction_z * direction_z)
-	
-	# Predict where target will be and move there
-	var predicted_x = target_grid[0] + direction_x * 0.3
-	var predicted_z = target_grid[1] + direction_z * 0.3
-	
-	# Clamp to grid bounds
-	predicted_x = clamp(predicted_x, 0, 9)
-	predicted_z = clamp(predicted_z, 0, 9)
-	
-	# Generate more detailed reasoning based on situation
-	var reasoning = ""
-	var emergency_mode = false
-	var confidence = 0.8
-	
-	if distance < 2.0:
-		reasoning = "Target very close! Direct pursuit mode. Distance: " + str(round(distance * 10) / 10) + " units"
-		emergency_mode = true
-		confidence = 0.95
-	elif distance < 4.0:
-		reasoning = "Target within range. Calculating interception path. Predicting movement to (" + str(round(predicted_x * 10) / 10) + ", " + str(round(predicted_z * 10) / 10) + ")"
-		confidence = 0.85
-	else:
-		reasoning = "Target distant. Moving to optimal position for pursuit. Distance: " + str(round(distance * 10) / 10) + " units"
-		confidence = 0.7
-	
-	# Add obstacle awareness
-	if current_obstacles.size() > 0:
-		reasoning += ". Navigating through " + str(current_obstacles.size()) + " tree/rock obstacles (low-altitude challenge)"
-	
-	var shooting_info = _calculate_shooting_range()
-	if shooting_info.in_range:
-		reasoning += ". TARGET IN RANGE - engaging"
-	else:
-		reasoning += ". Closing to engage (range: " + str(shooting_info.distance) + ")"
-	
-	var simulated_response = {
-		"type": "move_command",
-		"target_position": [predicted_x, predicted_z],
-		"reasoning": reasoning,
-		"emergency_mode": emergency_mode,
-		"confidence": confidence
-	}
-	
-	ai_decision_received.emit(simulated_response)
-
-func _on_ai_response_received(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
-	"""Handle AI response from HTTP request"""
-	if response_code != 200:
-		ai_error_occurred.emit("HTTP error: " + str(response_code))
-		return
+func _process_command(json_body: String) -> Dictionary:
+	"""Process command from AI agent"""
+	if json_body.is_empty():
+		return {"error": "Empty command body"}
 	
 	var json = JSON.new()
-	var parse_result = json.parse(body.get_string_from_utf8())
-	
+	var parse_result = json.parse(json_body)
 	if parse_result != OK:
-		ai_error_occurred.emit("JSON parse error")
-		return
+		return {"error": "Invalid JSON in command"}
 	
-	var response_data = json.data
-	if debug_mode:
-		print("AI Response received: ", response_data)
+	var command_data = json.data
+	if not command_data.has("action"):
+		return {"error": "No action specified"}
 	
-	ai_decision_received.emit(response_data)
+	var action = command_data.action
+	print("Processing AI command: ", action)
+	
+	match action:
+		"navigate_to":
+			return _handle_navigate_to(command_data)
+		"set_flight_mode":
+			return _handle_set_flight_mode(command_data)
+		"emergency_stop":
+			return _handle_emergency_stop(command_data)
+		"reset_position":
+			return _handle_reset_position(command_data)
+		"shoot_target":
+			return _handle_shoot_target(command_data)
+		"orbit_target":
+			return _handle_orbit_target(command_data)
+		"approach_target":
+			return _handle_approach_target(command_data)
+		"hover":
+			return _handle_hover(command_data)
+		"set_navigation_mode":
+			return _handle_set_navigation_mode(command_data)
+		_:
+			return {"error": "Unknown action: " + str(action)}
 
-func get_ai_status() -> Dictionary:
-	"""Get current AI status"""
+func _handle_navigate_to(data: Dictionary) -> Dictionary:
+	"""Handle navigation command"""
+	if not data.has("target"):
+		return {"error": "No target position specified"}
+	
+	var target = data.target
+	var target_pos = Vector3.ZERO
+	
+	if target is Array and target.size() >= 3:
+		target_pos = Vector3(target[0], target[1], target[2])
+	elif target is Dictionary:
+		target_pos = Vector3(
+			target.get("x", 0),
+			target.get("y", 0),
+			target.get("z", 0)
+		)
+	else:
+		return {"error": "Invalid target position format"}
+	
+	# Send to aerodynamic drone controller
+	if ai_bridge_controller and ai_bridge_controller.has_method("navigate_to_target"):
+		ai_bridge_controller.navigate_to_target(target_pos)
+		return {"success": true, "message": "Navigation command sent", "target": target_pos}
+	elif drone_controller and drone_controller.has_method("set_target_position"):
+		drone_controller.set_target_position(target_pos)
+		return {"success": true, "message": "Target position set", "target": target_pos}
+	else:
+		return {"error": "No navigation method available"}
+
+func _handle_set_flight_mode(data: Dictionary) -> Dictionary:
+	"""Handle flight mode change"""
+	if not data.has("mode"):
+		return {"error": "No flight mode specified"}
+	
+	var mode = data.mode
+	if drone_controller and drone_controller.has_method("set_flight_mode"):
+		drone_controller.set_flight_mode(mode)
+		return {"success": true, "message": "Flight mode set to " + str(mode)}
+	else:
+		return {"error": "Flight mode control not available"}
+
+func _handle_emergency_stop(_data: Dictionary) -> Dictionary:
+	"""Handle emergency stop command"""
+	if drone_controller and drone_controller.has_method("emergency_stop"):
+		drone_controller.emergency_stop()
+		return {"success": true, "message": "Emergency stop activated"}
+	elif drone_controller and drone_controller.has_method("set_emergency_mode"):
+		drone_controller.set_emergency_mode(true)
+		return {"success": true, "message": "Emergency mode activated"}
+	else:
+		return {"error": "Emergency stop not available"}
+
+func _handle_reset_position(data: Dictionary) -> Dictionary:
+	"""Handle position reset command"""
+	var reset_pos = Vector3(0, 1, 0)  # Default reset position
+	
+	if data.has("position"):
+		var pos_data = data.position
+		if pos_data is Array and pos_data.size() >= 3:
+			reset_pos = Vector3(pos_data[0], pos_data[1], pos_data[2])
+		elif pos_data is Dictionary:
+			reset_pos = Vector3(
+				pos_data.get("x", 0),
+				pos_data.get("y", 1),
+				pos_data.get("z", 0)
+			)
+	
+	if drone_controller and drone_controller.has_method("reset_position"):
+		drone_controller.reset_position(reset_pos)
+		return {"success": true, "message": "Position reset", "position": reset_pos}
+	else:
+		return {"error": "Position reset not available"}
+
+func _handle_shoot_target(_data: Dictionary) -> Dictionary:
+	"""Handle shooting command"""
+	if drone_controller and drone_controller.has_method("engage_target"):
+		drone_controller.engage_target()
+		return {"success": true, "message": "Target engagement initiated"}
+	else:
+		return {"error": "Shooting system not available"}
+
+func _handle_orbit_target(data: Dictionary) -> Dictionary:
+	"""Handle orbit command"""
+	if not ai_bridge_controller:
+		return {"error": "AI bridge controller not available"}
+	
+	if not ai_bridge_controller.has_method("orbit_target"):
+		return {"error": "Orbit functionality not available"}
+	
+	var radius = data.get("radius", 2.0)
+	var speed = data.get("speed", 1.0)
+	
+	ai_bridge_controller.orbit_target(radius, speed)
+	return {"success": true, "message": "Orbit mode activated"}
+
+func _handle_approach_target(data: Dictionary) -> Dictionary:
+	"""Handle approach command"""
+	if not ai_bridge_controller:
+		return {"error": "AI bridge controller not available"}
+	
+	if not ai_bridge_controller.has_method("approach_target"):
+		return {"error": "Approach functionality not available"}
+	
+	var distance = data.get("distance", 1.0)
+	ai_bridge_controller.approach_target(distance)
+	return {"success": true, "message": "Approach mode activated"}
+
+func _handle_hover(_data: Dictionary) -> Dictionary:
+	"""Handle hover command"""
+	if ai_bridge_controller and ai_bridge_controller.has_method("set_navigation_mode"):
+		ai_bridge_controller.set_navigation_mode("hovering")
+		return {"success": true, "message": "Hover mode activated"}
+	elif drone_controller and drone_controller.has_method("set_flight_mode"):
+		drone_controller.set_flight_mode("ALTITUDE_HOLD")
+		return {"success": true, "message": "Altitude hold mode activated"}
+	else:
+		return {"error": "Hover mode not available"}
+
+func _handle_set_navigation_mode(data: Dictionary) -> Dictionary:
+	"""Handle navigation mode change"""
+	if not data.has("mode"):
+		return {"error": "No navigation mode specified"}
+	
+	var mode = data.mode
+	if ai_bridge_controller and ai_bridge_controller.has_method("set_navigation_mode"):
+		ai_bridge_controller.set_navigation_mode(mode)
+		return {"success": true, "message": "Navigation mode set to " + str(mode)}
+	else:
+		return {"error": "Navigation mode control not available"}
+
+func _get_environment_info() -> Dictionary:
+	"""Get information about the environment"""
+	var scene_tree = get_tree()
+	
+	# Find target
+	var target_node = scene_tree.get_first_node_in_group("target")
+	var target_info = {}
+	if target_node:
+		target_info = {
+			"position": target_node.global_position,
+			"exists": true,
+			"name": target_node.name
+		}
+		if target_node.has_method("get_health"):
+			target_info["health"] = target_node.get_health()
+	else:
+		target_info = {"exists": false}
+	
+	# Find obstacles
+	var obstacles = scene_tree.get_nodes_in_group("obstacles")
+	var obstacle_info = []
+	for obstacle in obstacles:
+		obstacle_info.append({
+			"name": obstacle.name,
+			"position": obstacle.global_position
+		})
+	
 	return {
-		"running": is_ai_running,
-		"last_update": last_decision_time,
-		"decision_interval": decision_interval
+		"target": target_info,
+		"obstacles": obstacle_info,
+		"map_bounds": {
+			"min": Vector3(-4.0, 0, -4.0),
+			"max": Vector3(4.0, 3.0, 4.0)
+		}
 	}
 
-func _exit_tree():
-	"""Clean up when exiting"""
-	stop_ai_agent() 
+# Signal handlers for event reporting
+func _on_collision_detected(position: Vector3):
+	print("AI Interface: Collision detected at ", position)
+
+func _on_target_reached(position: Vector3):
+	print("AI Interface: Target reached at ", position)
+
+func _on_flight_mode_changed(new_mode: String):
+	print("AI Interface: Flight mode changed to ", new_mode)
+
+func _on_emergency_activated():
+	print("AI Interface: Emergency mode activated")
+
+func _on_shot_fired(from_pos: Vector3, to_pos: Vector3):
+	print("AI Interface: Shot fired from ", from_pos, " to ", to_pos)
+
+func update_environment():
+	"""Legacy compatibility function for GameManager"""
+	# This function exists for compatibility with GameManager.gd
+	# In the aerodynamic system, environment updates are handled differently
+	pass
+
+func _find_drone_controller():
+	"""Find the drone controller with retry logic"""
+	var max_attempts = 10
+	var attempt = 0
+	
+	while attempt < max_attempts and not drone_controller:
+		var scene_tree = get_tree()
+		drone_controller = scene_tree.get_first_node_in_group("drones")
+		
+		if not drone_controller:
+			# Try alternative ways to find the drone
+			var main_scene = scene_tree.current_scene
+			if main_scene:
+				drone_controller = main_scene.get_node_or_null("AerodynamicDrone")
+		
+		if not drone_controller:
+			# Try the old group name
+			drone_controller = scene_tree.get_first_node_in_group("drone")
+		
+		if drone_controller:
+			print("Found drone controller: ", drone_controller.name)
+			break
+		
+		attempt += 1
+		if attempt < max_attempts:
+			print("Drone not found yet, attempt ", attempt, "/", max_attempts, " - retrying...")
+			await get_tree().process_frame
+		else:
+			print("Failed to find drone after ", max_attempts, " attempts")

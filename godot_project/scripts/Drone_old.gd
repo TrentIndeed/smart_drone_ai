@@ -1,5 +1,5 @@
 extends CharacterBody3D
-class_name Drone
+class_name DroneOld
 
 # Drone - AI-controlled hunter with physics-based movement
 
@@ -7,16 +7,16 @@ signal collision_detected(obstacle_position: Vector3)
 signal target_shot(target_position: Vector3)
 signal shot_fired(from_position: Vector3, to_position: Vector3)
 
-@export var max_speed: float = 5.0  # units/second - Realistic 2x2ft surveillance drone (scaled down)
-@export var acceleration: float = 8.0  # units/second² - Drone has better acceleration
-@export var friction: float = 0.8
-@export var flight_height: float = 0.5  # Lower flight height for better gameplay
+@export var max_speed: float = 3.5  # units/second - Smoother movement
+@export var acceleration: float = 12.0  # units/second² - Higher acceleration for smoother response
+@export var friction: float = 0.92  # Higher friction for smoother stopping
+@export var flight_height: float = 0.6  # Just a foot higher than original (was 0.5)
 
 # Shooting system
 @export var max_shooting_range: float = 1.0  # Maximum effective range for neutralization (20ft)
 @export var optimal_shooting_range: float = 0.6  # Optimal range for best accuracy (12ft)
-@export var shooting_cooldown_time: float = 1.0  # Seconds between shots
-@export var aiming_time: float = 0.3  # Time needed to aim before shooting
+@export var shooting_cooldown_time: float = 0.5  # Faster shots (was 1.0)
+@export var aiming_time: float = 0.2  # Faster aiming (was 0.3)
 
 var target_position: Vector3
 var emergency_mode: bool = false
@@ -39,9 +39,24 @@ func _ready():
 	print("Drone initialized")
 	target_position = position
 	
+	# Add to drones group for GameManager to find
+	add_to_group("drones")
+	
 	# Set up collision layers for drone
 	collision_layer = 1  # Drone is on layer 1
 	collision_mask = 2   # Only collide with obstacles on layer 2
+	
+	# Create and apply physics material for smoother collisions
+	var physics_material = PhysicsMaterial.new()
+	physics_material.bounce = 0.0  # No bounce
+	physics_material.friction = 0.3  # Low friction for smooth sliding
+	
+	# Apply the physics material to the collision shape
+	var collision_shape = $CollisionShape3D
+	if collision_shape and collision_shape.shape:
+		# Note: PhysicsMaterial is applied to the body, not the shape
+		# We'll handle this in the CharacterBody3D settings instead
+		pass
 
 func _physics_process(delta):
 	# Update collision cooldown
@@ -108,11 +123,14 @@ func _update_movement(delta: float):
 		if Engine.get_process_frames() % 60 == 0:  # Debug every second
 			print("Drone near target or no movement - Distance: ", distance, " Target: ", target_position)
 	
-	# Apply acceleration/deceleration
-	velocity = velocity.move_toward(desired_velocity, acceleration * delta)
-	
-	# Apply friction when no input
-	if desired_velocity.length() < 0.1:
+	# Apply smooth acceleration/deceleration
+	var accel_rate = acceleration * delta
+	if desired_velocity.length() > 0.1:
+		# Moving toward target - use acceleration
+		velocity = velocity.move_toward(desired_velocity, accel_rate)
+	else:
+		# No target movement - apply friction smoothly
+		velocity = velocity.move_toward(Vector3.ZERO, accel_rate * 1.5)
 		velocity *= friction
 	
 	# Apply gravity to bring drone back to flight height
@@ -159,51 +177,45 @@ func _update_movement(delta: float):
 		if is_valid_collision and collision_cooldown <= 0:
 			collision_detected.emit(collision_point)
 			print("Processing collision with obstacle: ", collider.name if collider else "unknown")
-			print("  Collision normal: ", collision_normal)
-			print("  Collision point: ", collision_point)
-			print("  Drone position: ", position)
 			
-			# Smart collision response based on collision normal
-			var bounce_direction = collision_normal
+			# Gentle collision response - much less bouncy
+			var _push_direction = collision_normal
 			
-			# Check if this is a top collision (hitting the top of an obstacle)
+			# Check collision type
 			var is_top_collision = collision_normal.y > 0.7  # Normal pointing mostly upward
 			var is_side_collision = abs(collision_normal.y) < 0.3  # Normal mostly horizontal
 			
 			if is_top_collision:
-				# Collision with top of obstacle - push drone up and slightly back
-				print("  Top collision detected - pushing drone up")
-				bounce_direction = Vector3(collision_normal.x * 0.5, 1.0, collision_normal.z * 0.5).normalized()
-				position += bounce_direction * 0.5  # Push up and away
-				velocity.y = max(velocity.y, 2.0)  # Add upward velocity
+				# Top collision - gentle upward push
+				print("  Top collision - gentle upward correction")
+				position += Vector3(collision_normal.x * 0.1, 0.2, collision_normal.z * 0.1)
+				velocity.y = max(velocity.y, 0.5)  # Gentle upward velocity
+				velocity *= 0.8  # Reduce overall velocity
 			elif is_side_collision:
-				# Side collision - push horizontally but maintain flight height
-				print("  Side collision detected - pushing drone horizontally")
-				bounce_direction.y = 0  # Keep horizontal for side collisions
-				position += bounce_direction * 0.4
+				# Side collision - gentle horizontal push
+				print("  Side collision - gentle horizontal correction")
+				var horizontal_push = Vector3(collision_normal.x, 0, collision_normal.z) * 0.15
+				position += horizontal_push
 				position.y = flight_height  # Maintain flight height
+				velocity *= 0.7  # Reduce velocity on side collision
 			else:
-				# General collision - use normal but bias toward horizontal
-				print("  General collision detected")
-				bounce_direction = Vector3(collision_normal.x, collision_normal.y * 0.3, collision_normal.z).normalized()
-				position += bounce_direction * 0.3
+				# General collision - very gentle response
+				print("  General collision - gentle correction")
+				position += collision_normal * 0.1
+				velocity *= 0.75
 			
-			# Velocity reflection based on collision type
+			# Gentle velocity adjustment - no harsh reflection
 			if velocity.dot(collision_normal) < 0:  # Moving into the obstacle
-				if is_top_collision:
-					# For top collisions, reduce horizontal velocity and add upward bounce
-					velocity = Vector3(velocity.x * 0.5, abs(velocity.y) + 1.5, velocity.z * 0.5)
-				else:
-					# For side collisions, reflect horizontally
-					velocity = velocity.reflect(collision_normal) * 0.7
-					velocity += bounce_direction * 1.5
+				# Simply reduce velocity in the collision direction
+				var collision_velocity = velocity.dot(collision_normal)
+				velocity -= collision_normal * collision_velocity * 0.8  # Absorb most of the collision velocity
 			
 			# Set emergency mode if collision happens repeatedly
 			if not emergency_mode:
 				set_emergency_mode(true)
 				print("Entering emergency mode due to collision")
 			
-			collision_cooldown = 0.5  # Longer cooldown after collision
+			collision_cooldown = 0.2  # Shorter cooldown for smoother response
 
 func _update_shooting_system(delta: float):
 	"""Update the drone's shooting and targeting system"""
@@ -279,11 +291,11 @@ func _fire_at_target():
 	var target_pos = current_target.position
 	var distance = position.distance_to(target_pos)
 	
-	# Calculate hit probability based on range
+	# Calculate hit probability based on range - improved accuracy
 	var hit_chance = 1.0
 	if distance > optimal_shooting_range:
-		# Reduced accuracy at longer ranges
-		hit_chance = 1.0 - (distance - optimal_shooting_range) / (max_shooting_range - optimal_shooting_range) * 0.3
+		# Better accuracy at longer ranges (was 0.3, now 0.15)
+		hit_chance = 1.0 - (distance - optimal_shooting_range) / (max_shooting_range - optimal_shooting_range) * 0.15
 	
 	print("Drone firing at target! Range: ", distance, " Hit chance: ", hit_chance * 100, "%")
 	
@@ -292,8 +304,13 @@ func _fire_at_target():
 	
 	# Check for hit
 	if randf() <= hit_chance:
-		print("TARGET NEUTRALIZED!")
-		target_shot.emit(target_pos)
+		print("TARGET HIT!")
+		# Call the target's take_damage function instead of immediately neutralizing
+		if current_target.has_method("take_damage"):
+			current_target.take_damage(1)
+		else:
+			# Fallback for old system
+			target_shot.emit(target_pos)
 	else:
 		print("Shot missed")
 	
@@ -572,7 +589,7 @@ func _eject_drone_from_obstacle(obstacle_node: Node):
 	eject_direction = eject_direction.normalized()
 	
 	# Calculate safe distance (estimated obstacle radius + safety margin)
-	var safe_distance = 1.0  # Minimum safe distance
+	var _safe_distance = 1.0  # Minimum safe distance
 	
 	# Try different ejection distances
 	var ejection_attempts = [1.0, 1.5, 2.0, 2.5]

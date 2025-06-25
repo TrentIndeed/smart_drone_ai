@@ -4,10 +4,14 @@ class_name Target
 # Target - Evasive entity that tries to escape from the drone
 
 signal caught
+signal target_hit(remaining_health: int)
+signal target_neutralized
 
 @export var max_speed: float = 3.0  # units/second - Realistic 25 mph human runner (scaled down)
 @export var evasion_strength: float = 1.0
 @export var randomness: float = 0.3
+@export var max_health: int = 2  # Target dies after 2 shots (faster kills)
+var current_health: int = 2
 
 var trail_points: Array[Vector3] = []
 var max_trail_length: int = 15
@@ -27,6 +31,11 @@ func _ready():
 	print("Target initialized at position: ", position)
 	print("Target visible: ", visible)
 	print("Target collision shape: ", $CollisionShape3D.shape)
+	print("Target collision_layer: ", collision_layer)
+	print("Target collision_mask: ", collision_mask)
+	
+	# Initialize health
+	current_health = max_health
 	
 	# Ensure target is visible
 	visible = true
@@ -53,6 +62,56 @@ func _ready():
 		print("- RunningModel children: ", $RunningModel.get_children())
 		print("- Looking for AnimationPlayer in model...")
 
+func take_damage(damage: int = 1):
+	"""Take damage and handle neutralization"""
+	current_health -= damage
+	print("Target hit! Health: ", current_health, "/", max_health)
+	
+	target_hit.emit(current_health)
+	
+	if current_health <= 0:
+		print("Target neutralized!")
+		target_neutralized.emit()
+		# Don't hide the target here - let the GameManager handle it
+	else:
+		# Flash red when hit but not neutralized
+		var running_model = $RunningModel
+		if running_model:
+			var mesh_instances = _get_mesh_instances_from_model(running_model)
+			for mesh_instance in mesh_instances:
+				var material = mesh_instance.get_surface_override_material(0)
+				if not material:
+					material = StandardMaterial3D.new()
+					mesh_instance.set_surface_override_material(0, material)
+				
+				if material is StandardMaterial3D:
+					# Flash bright red when hit
+					material.albedo_color = Color(1.5, 0.3, 0.3, 1)
+					material.emission_enabled = true
+					material.emission = Color(0.8, 0.1, 0.1, 1)
+					
+					# Return to normal color after a short time
+					await get_tree().create_timer(0.3).timeout
+					material.albedo_color = Color(1, 1, 1, 1)
+					material.emission_enabled = false
+
+func reset_health():
+	"""Reset target health to maximum"""
+	current_health = max_health
+	print("Target health reset to: ", current_health)
+
+func _get_mesh_instances_from_model(node: Node) -> Array[MeshInstance3D]:
+	"""Helper function to find mesh instances in the target model"""
+	var mesh_instances: Array[MeshInstance3D] = []
+	
+	if node is MeshInstance3D:
+		mesh_instances.append(node)
+	
+	for child in node.get_children():
+		mesh_instances.append_array(_get_mesh_instances_from_model(child))
+	
+	return mesh_instances
+
 func _check_if_stuck(delta: float):
 	"""Check if target is stuck and force direction change if needed"""
 	var distance_moved = position.distance_to(last_position)
@@ -72,6 +131,12 @@ func _check_if_stuck(delta: float):
 	last_position = position
 
 func _physics_process(delta):
+	# Debug output to help identify why target isn't moving
+	if Engine.get_process_frames() % 60 == 0:  # Print every second
+		print("TARGET DEBUG - Position: ", position, " Velocity: ", velocity, " Speed: ", velocity.length())
+		print("TARGET DEBUG - Movement Direction: ", movement_direction, " Max Speed: ", max_speed)
+		print("TARGET DEBUG - Stuck Timer: ", stuck_timer, " Direction Timer: ", direction_change_timer)
+	
 	_check_if_stuck(delta)
 	_update_trail()
 	_update_panic_mode(delta)
@@ -114,7 +179,7 @@ func _update_panic_mode(delta: float):
 	# Update model color if available
 	var running_model = $RunningModel
 	if running_model:
-		var mesh_instances = _find_mesh_instances(running_model)
+		var mesh_instances = _get_mesh_instances_from_model(running_model)
 		for mesh_instance in mesh_instances:
 			var material = mesh_instance.get_surface_override_material(0)
 			if not material:
@@ -167,6 +232,10 @@ func _update_autonomous_movement(delta: float):
 	# Always apply base movement (target should always be moving)
 	var base_speed_multiplier = 0.6  # Reduced to 0.6 for more realistic human jogging pace
 	var intended_velocity = movement_direction * (max_speed * base_speed_multiplier)
+	
+	# Debug movement calculation
+	if Engine.get_process_frames() % 120 == 0:  # Print every 2 seconds
+		print("TARGET MOVEMENT DEBUG - Movement Dir: ", movement_direction, " Intended Vel: ", intended_velocity)
 	
 	# Obstacle avoidance prediction - check if we're about to hit something
 	var space_state = get_world_3d().direct_space_state
@@ -274,7 +343,7 @@ func _avoid_boundaries():
 	# Grid coordinates 0-9 become world coordinates -4.0 to +3.2
 	var min_boundary = -4.0  # Left/near edge
 	var max_boundary = 3.2   # Right/far edge  
-	var margin = 0.15  # Slightly larger margin to prevent corner sticking
+	var margin = 0.5  # Larger margin to avoid invisible walls near origin
 	
 	# Check if we're in a corner (near multiple boundaries simultaneously)
 	var near_x_max = position.x >= max_boundary - margin
@@ -355,7 +424,14 @@ func _handle_obstacle_collision():
 	var collision_point = collision.get_position()
 	var collider = collision.get_collider()
 	
-	print("Target collision with obstacle: ", collider.name if collider else "unknown", " at: ", position)
+	var collider_name = collider.name if collider else "unknown"
+	print("Target collision with obstacle: ", collider_name, " at: ", position)
+	
+	# If hitting boundary walls repeatedly, teleport to safe position
+	if collider_name.ends_with("Wall"):
+		print("Target stuck on boundary wall - teleporting to safe position")
+		_teleport_to_safe_position()
+		return
 	
 	# More aggressive pushback to escape tight spots
 	var pushback_direction = (position - collision_point).normalized()
@@ -448,9 +524,44 @@ func reset_position(pos: Vector3):
 	position = pos
 	velocity = Vector3.ZERO
 	panic_mode = false
+
+func _teleport_to_safe_position():
+	"""Teleport target to a safe position when stuck"""
+	# Predefined safe positions around the map
+	var safe_positions = [
+		Vector3(-2.0, 0.0, -2.0),  # Northwest
+		Vector3(2.0, 0.0, -2.0),   # Northeast
+		Vector3(-2.0, 0.0, 2.0),   # Southwest
+		Vector3(2.0, 0.0, 2.0),    # Southeast
+		Vector3(0.0, 0.0, -2.0),   # North
+		Vector3(0.0, 0.0, 2.0),    # South
+		Vector3(-2.0, 0.0, 0.0),   # West
+		Vector3(2.0, 0.0, 0.0)     # East
+	]
+	
+	# Find the safest position (furthest from current position)
+	var best_pos = safe_positions[0]
+	var best_distance = position.distance_to(best_pos)
+	
+	for safe_pos in safe_positions:
+		var distance = position.distance_to(safe_pos)
+		if distance > best_distance:
+			best_distance = distance
+			best_pos = safe_pos
+	
+	# Teleport to safe position
+	position = best_pos
+	
+	# Reset movement state
+	velocity = Vector3.ZERO
+	movement_direction = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+	direction_change_timer = 2.0
+	stuck_timer = 0.0
+	
+	print("Target teleported to safe position: ", position)
 	panic_timer = 0.0
 	trail_points.clear()
-	print("Target reset to position: ", pos)
+	print("Target reset to position: ", position)
 
 func check_capture(drone_position: Vector3, capture_distance: float = 0.8):
 	"""Check if target has been captured by drone"""
@@ -490,7 +601,7 @@ func _setup_animation_player():
 		print("RunningModel scene file path: ", running_model.scene_file_path)
 		
 		# Check for mesh instances and fix materials
-		var mesh_instances = _find_mesh_instances(running_model)
+		var mesh_instances = _get_mesh_instances_from_model(running_model)
 		print("Found ", mesh_instances.size(), " mesh instances in running model")
 		for mesh in mesh_instances:
 			# Fix materials - Mixamo models often have transparent or missing materials
@@ -515,20 +626,24 @@ func _setup_animation_player():
 			# Try ALL available animations instead of guessing names
 			var animation_found = false
 			
-			# First, try to use any animation that exists
-			if anim_list.size() > 0:
-				current_animation = anim_list[0]
-				animation_found = true
-				print("Using first available animation: ", current_animation)
-			
-			# Also try common names as backup
-			var possible_names = ["Take 001", "mixamo.com", "Take001", "Running", "Run", "Armature|mixamo.com", "Armature|Take 001"]
-			for anim_name in possible_names:
+			# PRIORITIZE mixamo.com animation first
+			var preferred_names = ["mixamo.com", "Armature|mixamo.com"]
+			for anim_name in preferred_names:
 				if animation_player.has_animation(anim_name):
 					current_animation = anim_name
 					animation_found = true
-					print("Found animation with common name: ", anim_name)
+					print("Found preferred mixamo.com animation: ", anim_name)
 					break
+			
+			# If mixamo.com not found, try other common names
+			if not animation_found:
+				var possible_names = ["Take 001", "Take001", "Running", "Run", "Armature|Take 001"]
+				for anim_name in possible_names:
+					if animation_player.has_animation(anim_name):
+						current_animation = anim_name
+						animation_found = true
+						print("Found animation with common name: ", anim_name)
+						break
 			
 			# If no common names found, use first available
 			if not animation_found and anim_list.size() > 0:
@@ -575,10 +690,13 @@ func _setup_animation_player():
 	print("Target rotation: ", rotation)
 	if has_node("RunningModel"):
 		var model = $RunningModel
-		print("RunningModel scale: ", model.scale)
-		print("RunningModel position: ", model.position)
-		print("RunningModel visible: ", model.visible)
-		print("RunningModel scene_file_path: ", model.scene_file_path)
+		if model and is_instance_valid(model):
+			print("RunningModel scale: ", model.scale)
+			print("RunningModel position: ", model.position)
+			print("RunningModel visible: ", model.visible)
+			print("RunningModel scene_file_path: ", model.scene_file_path)
+		else:
+			print("RunningModel node exists but is not valid")
 	print("=== END DEBUG ===")
 
 func _implement_animation_fallback():
@@ -587,7 +705,7 @@ func _implement_animation_fallback():
 	
 	# Create a more realistic running animation for the model
 	var running_model = $RunningModel
-	if running_model:
+	if running_model and is_instance_valid(running_model):
 		# Fast running steps - very quick bob to simulate feet hitting ground
 		var bob_tween = create_tween()
 		bob_tween.set_loops()
@@ -700,18 +818,6 @@ func _update_model_orientation():
 		var look_direction = velocity.normalized()
 		var target_rotation = atan2(look_direction.x, look_direction.z)
 		rotation.y = lerp_angle(rotation.y, target_rotation, 0.08)  # Smooth rotation
-
-func _find_mesh_instances(node: Node) -> Array[MeshInstance3D]:
-	"""Recursively find all MeshInstance3D nodes in the model"""
-	var mesh_instances: Array[MeshInstance3D] = []
-	
-	if node is MeshInstance3D:
-		mesh_instances.append(node)
-	
-	for child in node.get_children():
-		mesh_instances.append_array(_find_mesh_instances(child))
-	
-	return mesh_instances
 
 func _fix_mesh_materials(mesh_instance: MeshInstance3D):
 	"""Fix materials for Mixamo models that might have transparency issues"""

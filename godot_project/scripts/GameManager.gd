@@ -45,21 +45,39 @@ func _ready():
 	# Add self to group for tracking
 	add_to_group("game_manager")
 	
-	ai_interface = get_node("/root/AIInterface")
+	# Get reference to main scene
+	var main_scene = get_tree().current_scene
 	
-	# Connect AI signals
-	ai_interface.ai_decision_received.connect(_on_ai_decision_received)
-	ai_interface.ai_error_occurred.connect(_on_ai_error)
+	# Try multiple paths to find AI_Interface
+	if main_scene:
+		ai_interface = main_scene.get_node_or_null("AI_Interface")
+	if not ai_interface:
+		ai_interface = get_node_or_null("/root/Main/AI_Interface")
+	if not ai_interface:
+		# Try finding anywhere in scene tree
+		var ai_nodes = get_tree().get_nodes_in_group("ai_interface")
+		if ai_nodes.size() > 0:
+			ai_interface = ai_nodes[0]
+	if not ai_interface:
+		print("Warning: AI_Interface node not found - AI functionality disabled")
+	
+	# Note: New HTTP-based AI interface doesn't use signals
+	# AI communication is handled via HTTP requests/responses
 	
 	# Initialize UI immediately with proper controls display
-	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
+	var status_label = null
+	var ai_reasoning_label = null
+	
+	if main_scene:
+		status_label = main_scene.get_node_or_null("UI/StatusPanel/StatusLabel")
+		ai_reasoning_label = main_scene.get_node_or_null("UI/AIReasoningPanel/AIReasoningLabel")
+	
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, C to toggle collision debug, ESC to exit\nPress any key to see controls"
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: Initializing...\nMISSION: Neutralize target within 20ft range (2 shots required)\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft, Fast targeting\nControls: R to restart, Space to pause/resume, C to toggle collision debug, ESC to exit\nPress any key to see controls"
 	else:
 		print("Status label not found - UI may not be set up correctly")
 	
 	# Initialize AI reasoning display
-	var ai_reasoning_label = get_node_or_null("../UI/AIReasoningPanel/AIReasoningLabel")
 	if ai_reasoning_label:
 		ai_reasoning_label.text = "AI Reasoning:\nInitializing AI system...\nAnalyzing environment...\nTACTICAL CHALLENGE: Drone must navigate tree branches\nWEAPONS SYSTEM: Engaging within 10ft range only\nTarget is ground-bound - both must avoid obstacles\nPreparing strategic assessment..."
 	else:
@@ -81,9 +99,7 @@ func _setup_game_objects():
 	
 	# Create spawner (GLB or simple fallback)
 	if use_simple_spawner:
-		print("Using simple spawner as fallback...")
 		if not simple_spawner:
-			print("Creating simple spawner...")
 			var SimpleSpawnerScript = load("res://scripts/SimpleObjectSpawner.gd")
 			if SimpleSpawnerScript:
 				simple_spawner = SimpleSpawnerScript.new()
@@ -91,19 +107,15 @@ func _setup_game_objects():
 				simple_spawner.debug_collision_shapes = debug_collision_shapes  # Pass debug flag
 				add_child(simple_spawner)
 				simple_spawner.objects_spawned.connect(_on_simple_objects_spawned)
-				print("Simple spawner created successfully with debug: ", debug_collision_shapes)
 			else:
 				print("ERROR: Could not load SimpleObjectSpawner script!")
 				return
 		
 		# Spawn simple objects
-		print("Calling simple spawn_objects()...")
 		simple_spawner.spawn_objects()
-		print("Simple spawn_objects() call completed")
 	else:
 		# Create GLB spawner if it doesn't exist
 		if not glb_spawner:
-			print("Creating GLB spawner...")
 			var GLBSpawnerScript = load("res://scripts/GLBObjectSpawner.gd")
 			if GLBSpawnerScript:
 				glb_spawner = GLBSpawnerScript.new()
@@ -111,27 +123,46 @@ func _setup_game_objects():
 				glb_spawner.debug_collision_shapes = debug_collision_shapes  # Pass debug flag
 				add_child(glb_spawner)
 				glb_spawner.objects_spawned.connect(_on_glb_objects_spawned)
-				print("GLB spawner created successfully with debug: ", debug_collision_shapes)
 			else:
 				print("ERROR: Could not load GLBObjectSpawner script!")
 				return
 		
 		# Spawn GLB objects first
-		print("Calling spawn_objects()...")
 		glb_spawner.spawn_objects()
-		print("spawn_objects() call completed")
 	
-	# Create drone
-	drone = preload("res://scenes/Drone.tscn").instantiate()
-	add_child(drone)
-	# Find a safe spawn position for the drone too
+	# Find existing drone in scene instead of creating new one
+	drone = get_tree().get_first_node_in_group("drones")
+	if not drone:
+		# Try finding by node name in main scene
+		var main_scene = get_tree().current_scene
+		if main_scene:
+			drone = main_scene.get_node_or_null("AerodynamicDrone")
+	if not drone:
+		# Try finding anywhere in the scene tree
+		var all_drones = get_tree().get_nodes_in_group("drones")
+		if all_drones.size() > 0:
+			drone = all_drones[0]
+	if not drone:
+		print("ERROR: No drone found in 'drones' group!")
+		return
+	
+	# Find a safe spawn position for the drone
 	var drone_spawn_pos = _find_safe_drone_spawn_position()
 	drone.position = drone_spawn_pos
-	drone.collision_detected.connect(_on_drone_collision)
-	drone.target_shot.connect(_on_target_neutralized)
-	drone.shot_fired.connect(_on_shot_fired)
-	drone.add_to_group("drone")
-	print("Drone created at: ", drone.position)
+	
+	# Connect signals (aerodynamic drone signals)
+	if drone.has_signal("collision_detected"):
+		drone.collision_detected.connect(_on_drone_collision)
+	if drone.has_signal("target_shot"):
+		drone.target_shot.connect(_on_target_neutralized)
+	if drone.has_signal("shot_fired"):
+		drone.shot_fired.connect(_on_shot_fired)
+	if drone.has_signal("target_reached"):
+		drone.target_reached.connect(_on_target_reached)
+	if drone.has_signal("flight_mode_changed"):
+		drone.flight_mode_changed.connect(_on_flight_mode_changed)
+	
+	print("Using existing aerodynamic drone at: ", drone.position)
 	
 	# Create target
 	target = preload("res://scenes/Target.tscn").instantiate()
@@ -141,15 +172,15 @@ func _setup_game_objects():
 	target_spawn_pos.y = 0.0  # Ensure target is at ground level
 	target.position = target_spawn_pos
 	target.caught.connect(_on_target_caught)
+	target.target_hit.connect(_on_target_hit)
+	target.target_neutralized.connect(_on_target_neutralized_by_target)
 	target.add_to_group("target")
 	print("Target created at: ", target.position)
 
 func _clear_existing_entities():
 	"""Clear any existing game entities"""
-	# Remove existing drones
-	var existing_drones = get_tree().get_nodes_in_group("drone")
-	for existing_drone in existing_drones:
-		existing_drone.queue_free()
+	# Don't remove the aerodynamic drone - just reset its position
+	# It's part of the main scene now
 	
 	# Remove existing targets
 	var existing_targets = get_tree().get_nodes_in_group("target")
@@ -172,14 +203,12 @@ func _clear_existing_entities():
 
 func _on_glb_objects_spawned(count: int):
 	"""Callback when GLB objects are spawned"""
-	print("GLB objects spawned: ", count)
 	# Update obstacles array with spawned GLB objects
 	if glb_spawner:
 		obstacles = glb_spawner.get_spawned_objects()
 
 func _on_simple_objects_spawned(count: int):
 	"""Callback when simple objects are spawned"""
-	print("Simple objects spawned: ", count)
 	# Update obstacles array with spawned simple objects
 	if simple_spawner:
 		obstacles = simple_spawner.get_spawned_objects()
@@ -216,7 +245,7 @@ func start_simulation():
 	# Update UI to show running state
 	var status_label = get_node_or_null("../UI/StatusPanel/StatusLabel")
 	if status_label:
-		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nMISSION: Neutralize target within 20ft range\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft\nControls: R to restart, Space to pause/resume, ESC to exit"
+		status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: RUNNING\nMISSION: Neutralize target within 20ft range (2 shots required)\nSPEEDS: Drone 35mph (navigates tree branches), Target 25mph (ground-bound)\nWEAPONS: Optimal range 12ft, Max range 20ft, Fast targeting\nControls: R to restart, Space to pause/resume, ESC to exit"
 	
 	simulation_started.emit()
 	print("Simulation started successfully!")
@@ -268,7 +297,8 @@ func _update_ai_state():
 	for obstacle in obstacles:
 		obstacle_positions.append(obstacle.position)
 	
-	ai_interface.update_environment(drone_pos, target_pos, obstacle_positions)
+	if ai_interface:
+		ai_interface.update_environment()
 
 func _update_target_behavior(delta: float):
 	"""Update target's evasive behavior"""
@@ -293,45 +323,24 @@ func _update_target_behavior(delta: float):
 		# Move target evasively
 		target.move_evasively(evasion_direction, delta)
 
-func _on_ai_decision_received(decision: Dictionary):
-	"""Handle AI decision from LangGraph agent"""
-	if not simulation_running or not drone:
-		return
-	
-	print("AI Decision: ", decision.get("reasoning", "No reasoning provided"))
-	
-	# Update AI reasoning display in UI
-	var ai_reasoning_label = get_node_or_null("../UI/AIReasoningPanel/AIReasoningLabel")
-	if ai_reasoning_label:
-		var reasoning_text = decision.get("reasoning", "No reasoning provided")
-		var confidence = decision.get("confidence", 0.0)
-		var decision_type = decision.get("type", "unknown")
-		
-		ai_reasoning_label.text = "AI Reasoning:\n" + reasoning_text + "\n\nDecision Type: " + decision_type + "\nConfidence: " + str(confidence * 100) + "%"
-	
-	match decision.get("type", ""):
-		"move_command":
-			var target_pos = decision.get("target_position", [0, 0])
-			var world_pos = _grid_to_world(Vector2(target_pos[0], target_pos[1]))
-			drone.set_target_position(world_pos)
-			
-			# Handle emergency mode
-			if decision.get("emergency_mode", false):
-				drone.set_emergency_mode(true)
-			else:
-				drone.set_emergency_mode(false)
-		
-		"no_action":
-			# AI decided not to act this turn
-			pass
-		
-		_:
-			print("Unknown AI decision type: ", decision.get("type", ""))
+# Note: These functions are no longer used since AI interface switched to HTTP
+# AI decisions are now handled directly via HTTP requests to the AIInterface
 
-func _on_ai_error(error: String):
-	"""Handle AI error"""
-	print("AI Error: ", error)
-	# Could implement fallback behavior here
+func _legacy_on_ai_decision_received(_decision: Dictionary):
+	"""Legacy function - AI now uses HTTP interface"""
+	print("Legacy AI decision handler called - this should not happen")
+
+func _legacy_on_ai_error(error: String):
+	"""Legacy function - AI now uses HTTP interface"""
+	print("Legacy AI error handler called: ", error)
+
+func _on_target_reached(position: Vector3):
+	"""Handle drone reaching target position"""
+	print("Drone reached target position: ", position)
+
+func _on_flight_mode_changed(new_mode: String):
+	"""Handle flight mode changes"""
+	print("Drone flight mode changed to: ", new_mode)
 
 func _on_drone_collision(obstacle_position: Vector3):
 	"""Handle drone collision with obstacle"""
@@ -339,6 +348,16 @@ func _on_drone_collision(obstacle_position: Vector3):
 	obstacle_hit.emit()
 	
 	# Could add penalty or damage system here
+
+func _on_target_hit(remaining_health: int):
+	"""Handle target being hit but not neutralized"""
+	print("Target hit! Remaining health: ", remaining_health)
+	# Could add UI feedback here showing target health
+
+func _on_target_neutralized_by_target():
+	"""Handle target neutralization called by the target itself"""
+	print("Target neutralized by target signal!")
+	_on_target_neutralized(target.position if target else Vector3.ZERO)
 
 func _on_target_neutralized(target_position: Vector3):
 	"""Handle successful target neutralization via shooting"""
@@ -353,7 +372,7 @@ func _on_target_neutralized(target_position: Vector3):
 			status_label.text = "Hunter Drone AI - LangGraph Edition\nStatus: TARGET NEUTRALIZED!\nDrone successfully engaged target within 20ft range\nSimulation Complete - Success!\n\nPress R to restart or ESC to exit"
 	
 	# Hide the target to show it was neutralized (but don't destroy it)
-	if target:
+	if target and is_instance_valid(target):
 		target.visible = false
 	
 	target_caught.emit()
@@ -408,9 +427,11 @@ func restart_simulation():
 	print("Restarting simulation...")
 	stop_simulation(false)
 	
-	# Restore target visibility if it was hidden
-	if target:
+	# Restore target visibility if it was hidden and reset health
+	if target and is_instance_valid(target):
 		target.visible = true
+		if target.has_method("reset_health"):
+			target.reset_health()
 	
 	# Update UI
 	var status_label = get_node("../UI/StatusPanel/StatusLabel")
@@ -422,28 +443,26 @@ func restart_simulation():
 
 func _find_safe_drone_spawn_position() -> Vector3:
 	"""Find a safe position to spawn the drone away from obstacles"""
-	# Try several potential spawn positions for drone
+	# Try several potential spawn positions for drone - focus on safe center areas
 	var safe_positions = [
-		_grid_to_world(Vector2(1, 1)),   # Original spawn position
-		_grid_to_world(Vector2(2, 1)),   # Nearby alternative
-		_grid_to_world(Vector2(1, 2)),   # Another nearby alternative
-		_grid_to_world(Vector2(0, 0)),   # Center-left corner
-		_grid_to_world(Vector2(2, 2)),   # Slightly more central
-		_grid_to_world(Vector2(0, 1)),   # Left edge
-		_grid_to_world(Vector2(1, 0)),   # Bottom edge
+		Vector3(0, 2, 0),      # Center at good altitude
+		Vector3(1, 2, 1),      # Nearby safe spot
+		Vector3(-1, 2, 1),     # Another safe spot
+		Vector3(1, 2, -1),     # Another variation
+		Vector3(-1, 2, -1),    # Final variation
+		Vector3(0, 2, 2),      # Forward position
+		Vector3(0, 2, -2),     # Rear position
 	]
 	
 	# Check each position for safety
 	for pos in safe_positions:
-		pos.y = 0.5  # Set proper flight height for drone
 		if _is_spawn_position_safe(pos):
 			print("Found safe drone spawn at: ", pos)
 			return pos
 	
-	# Fallback to a safe position
+	# Fallback to a safe position in the center
 	print("Using fallback drone spawn position")
-	var fallback = _grid_to_world(Vector2(0, 0))
-	fallback.y = 0.5  # Flight height
+	var fallback = Vector3(0, 2, 0)  # Safe center position at good altitude
 	return fallback
 
 func _find_safe_spawn_position() -> Vector3:

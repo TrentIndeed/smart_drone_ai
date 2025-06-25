@@ -1,13 +1,11 @@
-[gd_scene load_steps=4 format=3 uid="uid://cis5vwb328213"]
+[gd_scene load_steps=5 format=3 uid="uid://cis5vwb328213"]
 
-[ext_resource type="Script" uid="uid://ckibdm6xehsqe" path="res://scripts/GameManager.gd" id="1_h4n2p"]
-[ext_resource type="PackedScene" path="res://scenes/Ground.tscn" id="2_ground"]
+[ext_resource type="PackedScene" uid="uid://bh1k2l3m4n5o6" path="res://scenes/Ground.tscn" id="2_ground"]
 [ext_resource type="Script" uid="uid://cgdfud7xovi6v" path="res://scripts/CameraController.gd" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://dq8xj2nv4k1x3" path="res://scenes/Drone.tscn" id="4_drone"]
+[ext_resource type="Script" uid="uid://bampnmtca12ey" path="res://scripts/AIInterface.gd" id="5_ai_interface"]
 
 [node name="Main" type="Node3D"]
-
-[node name="GameManager" type="Node3D" parent="."]
-script = ExtResource("1_h4n2p")
 
 [node name="CameraController" type="Node3D" parent="."]
 script = ExtResource("3_camera")
@@ -22,6 +20,35 @@ transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -
 shadow_enabled = true
 
 [node name="Ground" parent="." instance=ExtResource("2_ground")]
+
+[node name="AerodynamicDrone" parent="." instance=ExtResource("4_drone")]
+mass = 1.0
+pitch_input = 0.0273697
+roll_input = -0.0376448
+substeps_override = null
+control_command = null
+throttle_command = null
+brake_command = null
+collective_command = null
+show_debug = null
+update_debug = null
+show_wing_debug_vectors = null
+show_lift_vectors = null
+show_drag_vectors = null
+show_linear_velocity = null
+show_angular_velocity = null
+show_center_of_lift = null
+show_center_of_drag = null
+show_center_of_mass = null
+show_center_of_thrust = null
+debug_linear_velocity = null
+debug_angular_velocity = null
+debug_scale = null
+debug_width = null
+debug_center_width = null
+
+[node name="AI_Interface" type="Node" parent="."]
+script = ExtResource("5_ai_interface")
 
 [node name="UI" type="CanvasLayer" parent="."]
 

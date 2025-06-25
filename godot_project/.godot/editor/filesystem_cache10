@@ -1,14 +1,14 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1750454654
-default_env.tres::Environment::8704674059635208172::1750454654::0::1::::<><><>0<>0<><>::
+::res://::1750818109
+default_env.tres::Environment::8704674059635208172::1750739064::0::1::::<><><>0<>0<><>::
 icon.svg::CompressedTexture2D/CompressedTexture2D::8147268485641287699::1750023690::1750023742::1::::<><><>0<>0<>0919c888f1932c08e3d3209e41b57c3b<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 Main_albedo_bump_array.png::CompressedTexture2DArray/CompressedTexture2DArray::2778685306002558081::1750342244::1750342244::1::::<><><>0<>0<>d3dd3ef033728bbc0418d05ca4cbf3e4<>res://.godot/imported/Main_albedo_bump_array.png-9a2a8422dfabc06c5d67500c97db23ff.s3tc.ctexarray::
 Main_normal_roughness_array.png::CompressedTexture2DArray/CompressedTexture2DArray::7648354034425051988::1750342244::1750342244::1::::<><><>0<>0<>66ab93d9777a6b7cc42849d5127a518d<>res://.godot/imported/Main_normal_roughness_array.png-99da2398991b317aaad8a78e13bc5ffd.s3tc.ctexarray::
 Main_slot0_albedo_bump.png::CompressedTexture2D/CompressedTexture2D::5295644012059546425::1750343433::1750389817::1::::<><><>0<>0<>a4a42e717905152a88700bc5b89312b0<>res://.godot/imported/Main_slot0_albedo_bump.png-7b110bc0cfb8813eb18d63f0a7f0f53f.s3tc.ctex::
 Main_slot0_normal_roughness.png::CompressedTexture2D/CompressedTexture2D::2304371470935771871::1750343433::1750389817::1::::<><><>0<>0<>f6d850419481cf0820ea8932f65f98e6<>res://.godot/imported/Main_slot0_normal_roughness.png-d58d515d4f478e7a9b03f315e78168c5.s3tc.ctex::
 test_terrain_loading.gd::GDScript/GDScript::5066198456813643702::1750389817::0::1::::<>EditorScript<><>0<>1<><>::
-::res://addons/::1750389619
-::res://addons/GLB format/::1750454472
+::res://addons/::1750729031
+::res://addons/GLB format/::1750728550
 banner.glb::PackedScene/PackedScene::3556974511986678439::1750388974::1750454702::1::::<><><>0<>0<>c0cca58b2ba77de858d5ab3d817efde6<>res://.godot/imported/banner.glb-688229bdb250c97fd120a1414f0945a4.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 block.glb::PackedScene/PackedScene::6295038664949406303::1750388974::1750454703::1::::<><><>0<>0<>00a474d5438706fa87772ad91c34c6d0<>res://.godot/imported/block.glb-d42c6209396eed3590b4aa0a5cc2189a.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 border-corner.glb::PackedScene/PackedScene::5732565506052378220::1750388974::1750454703::1::::<><><>0<>0<>99b2f000e62d9ced6401244fa7baffd2<>res://.godot/imported/border-corner.glb-158e3bfe6a6da4c11b71b206c5a83244.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
@@ -23,7 +23,8 @@ stairs-corner-inner.glb::PackedScene/PackedScene::454334046078502517::1750388974
 stairs-corner.glb::PackedScene/PackedScene::171809004909707205::1750388974::1750454707::1::::<><><>0<>0<>8f1e56cd306147efdb874c846bb90b03<>res://.godot/imported/stairs-corner.glb-4d95e92e57c432e52dd2d0b475eb7a99.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 stairs.glb::PackedScene/PackedScene::8415843001622021135::1750388974::1750454708::1::::<><><>0<>0<>fef9f636129bc775121cbff7d8451e58<>res://.godot/imported/stairs.glb-583569181298183d3b2e0229c266c390.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 statue.glb::PackedScene/PackedScene::936830801375850552::1750388974::1750454708::1::::<><><>0<>0<>2beced8481b3077e7de000c8ca0625bd<>res://.godot/imported/statue.glb-744e3bcef4deddeb6c8b068a9d055c07.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
-tree.glb::PackedScene/PackedScene::421657323432963150::1750388974::1750454709::1::::<><><>0<>0<>f0c9e5776a2999cb36bdaad46c42a151<>res://.godot/imported/tree.glb-e9b7d12d1bdf7192dbfe79737008c2c2.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
+tree.glb::PackedScene/PackedScene::421657323432963150::1750388974::1750728550::1::::<><><>0<>0<>68e4e00b6b6688e417c78f19f99d20c3<>res://.godot/imported/tree.glb-e9b7d12d1bdf7192dbfe79737008c2c2.scn::uid://daioxmussd1yb::::res://addons/GLB format/tree.glb.res
+tree.glb.res::ArrayMesh/ArrayMesh::7176668846288654993::1750728549::0::1::::<><><>0<>0<><>::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 trophy.glb::PackedScene/PackedScene::6955441761593039379::1750388974::1750454709::1::::<><><>0<>0<>f449e1e40339deb29ca018bb54ac3ad5<>res://.godot/imported/trophy.glb-48b251842a59a5255c2bab01f2feacfc.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 wall-corner.glb::PackedScene/PackedScene::6584749268005805537::1750388974::1750454710::1::::<><><>0<>0<>c469dede530b2d1c5694b23a2dbcb609<>res://.godot/imported/wall-corner.glb-df217dafc26324bca849d381948bef8f.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 wall-gate.glb::PackedScene/PackedScene::6668606975743687292::1750388974::1750454710::1::::<><><>0<>0<>d97a1944f2487b694b0afd768950843f<>res://.godot/imported/wall-gate.glb-e05e093dd83486cf943f4cf0d3e3fd11.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
@@ -33,6 +34,88 @@ weapon-spear.glb::PackedScene/PackedScene::6194375692660659661::1750388974::1750
 weapon-sword.glb::PackedScene/PackedScene::3325702735674309073::1750388974::1750454712::1::::<><><>0<>0<>8de0cfeef271eea828c0a6103a9ce763<>res://.godot/imported/weapon-sword.glb-33a8f2a90b6cd590f9c471bf13e4b67e.scn::uid://oae7stnemsm::::res://addons/GLB format/Textures/colormap.png
 ::res://addons/GLB format/Textures/::1750451690
 colormap.png::CompressedTexture2D/CompressedTexture2D::28910141166957680::1750388974::1750451690::1::::<><><>0<>0<>5447dbf78c84b13a0c0eb8af3f27d234<>res://.godot/imported/colormap.png-b58d33c5de509f6892b7762e67a23a58.ctex::
+::res://addons/godot_aerodynamic_physics/::1750729035
+icon.png::CompressedTexture2D/CompressedTexture2D::1324343106806891206::1750729034::1750729035::1::::<><><>0<>0<>ac6d857ef42ee2d6588c307ebcbde406<>res://.godot/imported/icon.png-360f52e0f3c2b9a9ced4187983f9d833.ctex::
+plugin.cfg::TextFile/TextFile::-1::1750729034::0::1::::<><><>0<>0<><>::
+plugin.gd::GDScript/GDScript::-1::1750729034::0::1::::<>EditorPlugin<><>0<>1<><>::
+README.md::TextFile/TextFile::-1::1750729034::0::1::::<><><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/components/::1750729034
+AeroControlComponent.gd::GDScript/GDScript::4975373080812759529::1750729034::0::1::::AeroControlComponent<>Node<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/components/aero_thruster_component/::1750729034
+AeroJetThrusterComponent.gd::GDScript/GDScript::3027509430078491262::1750729034::0::1::::AeroJetThrusterComponent<>AeroThrusterComponent<>res://addons/godot_aerodynamic_physics/icons/JetThrusterComponent.svg<>0<>0<><>::
+AeroThrusterComponent.gd::GDScript/GDScript::5364112183655925657::1750729034::0::1::::AeroThrusterComponent<>Marker3D<>res://addons/godot_aerodynamic_physics/icons/JetThrusterComponent.svg<>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/core/::1750729034
+aero_body_3d.gd::GDScript/GDScript::1982365165800947650::1750729034::0::1::::AeroBody3D<>VehicleBody3D<><>0<>1<><>::
+flight_assist.gd::GDScript/GDScript::5016382736994879196::1750729034::0::1::::FlightAssist<>Resource<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/::1750729034
+aero_influencer_3d.gd::GDScript/GDScript::6766738982179005441::1750729034::0::1::::AeroInfluencer3D<>Node3D<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_mover_3d/::1750729034
+aero_mover_3d.gd::GDScript/GDScript::7036372208213533945::1750729034::0::1::::AeroMover3D<>AeroInfluencer3D<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_mover_3d/aero_rotor_hinge_3d/::1750729034
+aero_rotor_hinge_3d.gd::GDScript/GDScript::5561768486145407807::1750729034::0::1::::AeroRotorHinge3D<>AeroMover3D<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_rotator_3d/::1750729034
+aero_cyclic_propeller_3d.gd::GDScript/GDScript::1618848252183996646::1750729034::0::1::::AeroCyclicPropeller3D<>AeroVariablePropeller3D<><>0<>1<><>::
+aero_propeller_3d.gd::GDScript/GDScript::3692959477244592362::1750729034::0::1::::AeroPropeller3D<>AeroMover3D<><>0<>1<><>::
+aero_variable_propeller_3d.gd::GDScript/GDScript::9017829360384174398::1750729034::0::1::::AeroVariablePropeller3D<>AeroPropeller3D<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_surface_3d/::1750729034
+aero_surface_3d.gd::GDScript/GDScript::4648924163606788399::1750729034::0::1::::AeroSurface3D<>AeroInfluencer3D<><>0<>1<><>::
+aero_surface_config.gd::GDScript/GDScript::5986769370827916116::1750729034::0::1::::AeroSurfaceConfig<>Resource<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_surface_3d/manual_aero_surface_3d/::1750729034
+manual_aero_surface_3d.gd::GDScript/GDScript::9051925747697215290::1750729034::0::1::::ManualAeroSurface3D<>AeroSurface3D<><>0<>1<><>::
+manual_aero_surface_config.gd::GDScript/GDScript::6109833050684714037::1750729034::0::1::::ManualAeroSurfaceConfig<>Resource<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/control_configs/::1750729034
+aero_control_config.gd::GDScript/GDScript::4856391426713259922::1750729034::0::1::::AeroControlConfig<>Resource<><>0<>1<><>::
+aero_influencer_control_axis_config.gd::GDScript/GDScript::6873473846538455777::1750729034::0::1::::AeroInfluencerControlAxisConfig<>Resource<><>0<>0<><>::
+aero_influencer_control_config.gd::GDScript/GDScript::4867160034950360553::1750729034::0::1::::AeroInfluencerControlConfig<>Resource<><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/core/resources/::1750729034
+default_buffet_aoa_curve.tres::Curve/Curve::1431420140750614205::1750729034::0::1::::<><><>0<>0<><>::
+default_drag_aoa_curve.tres::Curve/Curve::2796496984180868491::1750729034::0::1::::<><><>0<>0<><>::
+default_drag_at_mach_curve.tres::Curve/Curve::8731831610450710618::1750729034::0::1::::<><><>0<>0<><>::
+default_lift_aoa_curve.tres::Curve/Curve::6446010121545948494::1750729034::0::1::::<><><>0<>0<><>::
+default_sweep_drag_multiplier.tres::Curve/Curve::7286375982939612997::1750729034::0::1::::<><><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/core/resources/flight_assist/::1750729034
+flight_assist.tres::Resource/FlightAssist::2824341279963514198::1750729034::0::1::::<><><>0<>0<><>::uid://d8tp3u2ibcyh::::res://addons/godot_aerodynamic_physics/core/resources/pids/altitude_pid.tres<>uid://dwdilr3th15ut::::res://addons/godot_aerodynamic_physics/core/resources/pids/bank_angle_pid.tres<>uid://cqgo7v8jao5fi::::res://addons/godot_aerodynamic_physics/core/resources/pids/direction_pitch_pid.tres<>uid://cjcwr3fy8sjjr::::res://addons/godot_aerodynamic_physics/core/resources/pids/direction_roll_pid.tres<>uid://cimkndlj6fknf::::res://addons/godot_aerodynamic_physics/core/resources/pids/direction_yaw_pid.tres<>uid://dhn1xf3nrt43k::::res://addons/godot_aerodynamic_physics/core/resources/pids/heading_pid.tres<>uid://dsteqcbn3er33::::res://assets/vehicles/f16/resources/pids/pitch.tres<>uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd<>uid://dkjwrbs3c0wvr::::res://addons/godot_aerodynamic_physics/core/resources/pids/roll_pid.tres<>uid://cdp8dc63ytxx1::::res://addons/godot_aerodynamic_physics/core/flight_assist.gd<>uid://ck80cone11d5w::::res://addons/godot_aerodynamic_physics/core/resources/pids/speed_pid.tres<>uid://c266ngwax13x5::::res://addons/godot_aerodynamic_physics/core/resources/pids/yaw_pid.tres
+::res://addons/godot_aerodynamic_physics/core/resources/pids/::1750729034
+altitude_pid.tres::Resource/aero_PID::279872909356587943::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+bank_angle_pid.tres::Resource/aero_PID::8710116061078441299::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+direction_pitch_pid.tres::Resource/aero_PID::5909157469801168762::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+direction_roll_pid.tres::Resource/aero_PID::5410037327486952135::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+direction_yaw_pid.tres::Resource/aero_PID::5359755209801059551::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+heading_pid.tres::Resource/aero_PID::7679040888905481470::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+pitch.tres::Resource/aero_PID::8462155961784326488::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+roll_pid.tres::Resource/aero_PID::7881096101189113371::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+speed_pid.tres::Resource/aero_PID::5544376521684342222::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+yaw_pid.tres::Resource/aero_PID::6733841647243042396::1750729034::0::1::::<><><>0<>0<><>::uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd
+::res://addons/godot_aerodynamic_physics/core/singletons/::1750729034
+aero_units.gd::GDScript/GDScript::2149031266824027728::1750729034::0::1::::<>Node<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/core/spatial_gizmo/::1750729034
+aero_surface_gizmo.gd::GDScript/GDScript::2783932972176896531::1750729034::0::1::::<>EditorNode3DGizmoPlugin<><>0<>1<><>::
+::res://addons/godot_aerodynamic_physics/demo/::1750729034
+demo_plane.tscn::PackedScene/PackedScene::8826536847772160236::1750729034::0::1::::<><><>0<>0<><>::uid://3iji867c81k5::::res://addons/godot_aerodynamic_physics/core/aero_body_3d.gd<>uid://cc5dwx5pqkaur::::res://addons/godot_aerodynamic_physics/components/AeroControlComponent.gd<>uid://d1725od371u4a::::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_surface_3d/manual_aero_surface_3d/manual_aero_surface_3d.gd<>uid://ctbwb7xlhft6t::::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_surface_3d/manual_aero_surface_3d/manual_aero_surface_config.gd<>uid://b4xqlunpiyivk::::res://addons/godot_aerodynamic_physics/utils/pid.gd<>uid://cdp8dc63ytxx1::::res://addons/godot_aerodynamic_physics/core/flight_assist.gd<>uid://crkbhmxpjff4o::::res://addons/godot_aerodynamic_physics/core/aero_influencer_3d/aero_surface_3d/aero_surface_config.gd<>uid://cbgqb7g7mmwtu::::res://addons/godot_aerodynamic_physics/core/control_configs/aero_control_config.gd<>uid://bjesvxrrkoocs::::res://addons/godot_aerodynamic_physics/components/aero_thruster_component/AeroJetThrusterComponent.gd<>uid://c46td0go5kvp6::::res://addons/godot_aerodynamic_physics/core/control_configs/aero_influencer_control_axis_config.gd<>uid://cblxodmmwvpt6::::res://addons/godot_aerodynamic_physics/core/control_configs/aero_influencer_control_config.gd
+demo_scene.tscn::PackedScene/PackedScene::5828706531321794721::1750729034::0::1::::<><><>0<>0<><>::uid://dx0v1i14fyw8c::::res://addons/godot_aerodynamic_physics/demo/demo_plane.tscn
+thruster.gd::GDScript/GDScript::6264640097769569464::1750729034::0::1::::<>Marker3D<><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/icons/::1750729035
+AeroBody3D.svg::CompressedTexture2D/CompressedTexture2D::4810875815374367895::1750729034::1750729035::1::::<><><>0<>0<>89a8929ed4b3dc79b555c61e6071bc05<>res://.godot/imported/AeroBody3D.svg-c8fbf4a6b3a6da6bd3847c46a2ed7b71.ctex::
+AeroInfluencer3D.svg::CompressedTexture2D/CompressedTexture2D::769449288769659355::1750729034::1750729035::1::::<><><>0<>0<>8d23418cb06ad29d993f77ae3c0ad820<>res://.godot/imported/AeroInfluencer3D.svg-eb204b96a1b8ff91f317f42215eb67dc.ctex::
+AeroPropeller3D.svg::CompressedTexture2D/CompressedTexture2D::2878350423445786823::1750729034::1750729035::1::::<><><>0<>0<>8875be1dd2ccc81095cbee69fcb9af8d<>res://.godot/imported/AeroPropeller3D.svg-975bf9b1b19013332a01e635cf92986e.ctex::
+AeroSurface3D.svg::CompressedTexture2D/CompressedTexture2D::8545302506487570670::1750729034::1750729035::1::::<><><>0<>0<>b4a10327c3e3fc701cc47fef9b1a512f<>res://.godot/imported/AeroSurface3D.svg-02a1e4747a7cef0314016e8ababf4e07.ctex::
+JetThrusterComponent.svg::CompressedTexture2D/CompressedTexture2D::7903856436213917870::1750729034::1750729035::1::::<><><>0<>0<>3e4de6c105c126bce837f29495fde7cf<>res://.godot/imported/JetThrusterComponent.svg-0094d7444fa45272e32ecd6bcad847db.ctex::
+node2d.svg::CompressedTexture2D/CompressedTexture2D::5756514851586594441::1750729034::1750729035::1::::<><><>0<>0<>ed4d170f3308f63d485f0c9cdb0baf3b<>res://.godot/imported/node2d.svg-1c4af45fbb253b3216298a31f51aca51.ctex::
+node3d.svg::CompressedTexture2D/CompressedTexture2D::6375020377901549667::1750729034::1750729035::1::::<><><>0<>0<>b8ce2e13c28dd295877c3292210ff4ff<>res://.godot/imported/node3d.svg-6973f68609ef45bb203c34a1805eed0e.ctex::
+node.svg::CompressedTexture2D/CompressedTexture2D::2087390872771429269::1750729034::1750729035::1::::<><><>0<>0<>fef5f774ab4660cc251186e833e88d87<>res://.godot/imported/node.svg-6aebf447c513cda1ac1c1da4eb2313e1.ctex::
+object.svg::CompressedTexture2D/CompressedTexture2D::4744852261054749319::1750729034::1750729035::1::::<><><>0<>0<>b961ab8b572e2a6cd760ca6c4ba16965<>res://.godot/imported/object.svg-b3f39239cbb4971124b96d1caf276b3f.ctex::
+::res://addons/godot_aerodynamic_physics/utils/::1750729034
+math_utils.gd::GDScript/GDScript::5811416985836677834::1750729034::0::1::::<>RefCounted<><>0<>0<><>::
+node_utils.gd::GDScript/GDScript::1404285064259085945::1750729034::0::1::::<>RefCounted<><>0<>0<><>::
+pid.gd::GDScript/GDScript::4470370024399267924::1750729034::0::1::::aero_PID<>Resource<><>0<>0<><>::
+plugin_utils.gd::GDScript/GDScript::6871514926886057888::1750729034::0::1::::<>RefCounted<><>0<>0<><>::
+transform_utils.gd::GDScript/GDScript::8692197573736280513::1750729034::0::1::::<>RefCounted<><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/utils/point_3d/::1750729034
+point_3d.gd::GDScript/GDScript::8401002489795503758::1750729034::0::1::::AeroDebugPoint3D<>MeshInstance3D<><>0<>1<><>::
+point_3d.gdshader::Shader/Shader::284347621797602891::1750729034::0::1::::<><><>0<>0<><>::
+::res://addons/godot_aerodynamic_physics/utils/vector_3d/::1750729034
+vector_3d.gd::GDScript/GDScript::8006300883023281852::1750729034::0::1::::AeroDebugVector3D<>MeshInstance3D<><>0<>1<><>::
+vector_3d.gdshader::Shader/Shader::5270827816771410601::1750729034::0::1::::<><><>0<>0<><>::
 ::res://addons/zylann.hterrain/::1750341505
 hterrain.gd::GDScript/GDScript::2593704113987825519::1750340492::0::1::::<>Node3D<><>0<>1<><>::
 hterrain_chunk.gd::GDScript/GDScript::2833211879894854293::1750340492::0::1::::<>RefCounted<><>0<>1<><>::
@@ -3237,22 +3320,29 @@ scene.gltf::PackedScene/PackedScene::7881046226049206659::1750039576::1750039602
 ::res://models/parrot_camo_drone_gltf/textures/::1750039604
 camo2_baseColor.png::CompressedTexture2D/CompressedTexture2D::548081482789483316::1750039576::1750039604::1::::<><><>0<>0<>913887bfc24c4c017dc0f8257486808b<>res://.godot/imported/camo2_baseColor.png-b4cba5fe1eb95959adc6f63f2e045979.s3tc.ctex::
 camo_baseColor.png::CompressedTexture2D/CompressedTexture2D::7131895463945657828::1750039576::1750039604::1::::<><><>0<>0<>64f2fe56485eeb2e58ab4a5e9e02eda8<>res://.godot/imported/camo_baseColor.png-7d3a48cdec561249e0001717529cc89a.s3tc.ctex::
-::res://scenes/::1750454654
-Drone.tscn::PackedScene/PackedScene::8351822017356799506::1750300627::0::1::::<><><>0<>0<><>::res://scripts/Drone.gd<>uid://bg4syaokxnx2t::::res://models/parrot_camo_drone_gltf/scene.gltf
-Ground.tscn::PackedScene/PackedScene::-1::1750300981::0::1::::<><><>0<>0<><>::
-Main.tscn::PackedScene::5373371085886643572::1750454654::0::1::::<><><>0<>0<><>::uid://ckibdm6xehsqe::::res://scripts/GameManager.gd<>res://scenes/Ground.tscn<>uid://cgdfud7xovi6v::::res://scripts/CameraController.gd
+::res://scenes/::1750739064
+Drone.tscn::PackedScene::8351822017356799506::1750739064::0::1::::<><><>0<>0<><>::uid://y0g5htfa44ot::::res://scripts/DroneFlightAdapter.gd<>uid://dkjvxd8dhwkil::::res://models/parrot_camo_drone_gltf/scene.gltf<>uid://eimidoqkqhnu::::res://scripts/DroneAI_Interface.gd
+DroneFlight.tscn::PackedScene/PackedScene::3895461894550300134::1750730096::0::1::::<><><>0<>0<><>::res://scripts/DroneFlight.gd
+DroneFlight_Simple.tscn::PackedScene::1611119938826890401::1750739064::0::1::::<><><>0<>0<><>::uid://mwhribdks2xj::::res://scripts/DroneFlightFallback.gd<>uid://bhwkxvnmssfaf::::res://scripts/DroneFlightController.gd
+Ground.tscn::PackedScene::2932072418723878955::1750737175::0::1::::<><><>0<>0<><>::
+Main.tscn::PackedScene::5373371085886643572::1750739064::0::1::::<><><>0<>0<><>::uid://bh1k2l3m4n5o6::::res://scenes/Ground.tscn<>uid://cgdfud7xovi6v::::res://scripts/CameraController.gd<>uid://dq8xj2nv4k1x3::::res://scenes/Drone.tscn<>uid://bampnmtca12ey::::res://scripts/AIInterface.gd
 Target.tscn::PackedScene/PackedScene::4378266447021444824::1750300644::0::1::::<><><>0<>0<><>::res://scripts/Target.gd<>uid://cuktj5qvmx7ja::::res://models/Running.fbx
-::res://scripts/::1750454651
-AIInterface.gd::GDScript/GDScript::2412127846677488732::1750304824::0::1::::<>Node<><>0<>0<><>::
-CameraController.gd::GDScript/GDScript::5200507071386856891::1750339734::0::1::::<>Node3D<><>0<>0<><>::
-DAECollisionImporter.gd::GDScript::1966545839299647988::1750453721::0::1::::<>EditorScript<><>0<>1<><>::
-DAEDiagnostic.gd::GDScript::1811598948406521558::1750454121::0::1::::<>EditorScript<><>0<>1<><>::
-Drone.gd::GDScript/GDScript::5409459538481725641::1750340993::0::1::::Drone<>CharacterBody3D<><>0<>0<><>::
-GameManager.gd::GDScript::5491311579393280516::1750454583::0::1::::<>Node3D<><>0<>0<><>::
-GLBCollisionChecker.gd::GDScript::4198200182124213413::1750454634::0::1::::<>EditorScript<><>0<>1<><>::
-GLBCollisionImporter.gd::GDScript::2533861638064988848::1750453009::0::1::::<>EditorScript<><>0<>1<><>::
-GLBDiagnostic.gd::GDScript::2195830336056977550::1750453236::0::1::::<>EditorScript<><>0<>1<><>::
-GLBObjectSpawner.gd::GDScript::-1::1750453301::0::1::::GLBObjectSpawner<>Node3D<><>0<>0<><>::
+::res://scripts/::1750736557
+AIInterface.gd::GDScript::2412127846677488732::1750736387::0::1::::<>Node<><>0<>0<><>::
+CameraController.gd::GDScript::5200507071386856891::1750736950::0::1::::<>Node3D<><>0<>0<><>::
+DAECollisionImporter.gd::GDScript/GDScript::1966545839299647988::1750455402::0::1::::<>EditorScript<><>0<>1<><>::
+DAEDiagnostic.gd::GDScript/GDScript::1811598948406521558::1750454121::0::1::::<>EditorScript<><>0<>1<><>::
+DroneAI_Interface.gd::GDScript/GDScript::298013466787324298::1750734381::0::1::::DroneAI_Interface<>Node<><>0<>0<><>::
+DroneFlight.gd::GDScript/GDScript::6904082119792869286::1750734430::0::1::::DroneFlight<>AeroBody3D<><>0<>1<><>::
+DroneFlightAdapter.gd::GDScript::1736559964181103147::1750737616::0::1::::Drone<>VehicleBody3D<><>0<>1<><>::
+DroneFlightController.gd::GDScript/GDScript::2923808266578922889::1750729790::0::1::::DroneFlightController<>Node<><>0<>0<><>::
+DroneFlightFallback.gd::GDScript/GDScript::888138233573466835::1750735265::0::1::::DroneFlightFallback<>VehicleBody3D<><>0<>0<><>::
+Drone_old.gd::GDScript/GDScript::8405297289078658781::1750735665::0::1::::DroneOld<>CharacterBody3D<><>0<>0<><>::
+GameManager.gd::GDScript::5491311579393280516::1750736434::0::1::::<>Node3D<><>0<>0<><>::
+GLBCollisionChecker.gd::GDScript/GDScript::4198200182124213413::1750455402::0::1::::<>EditorScript<><>0<>1<><>::
+GLBCollisionImporter.gd::GDScript/GDScript::2533861638064988848::1750453009::0::1::::<>EditorScript<><>0<>1<><>::
+GLBDiagnostic.gd::GDScript/GDScript::2195830336056977550::1750453236::0::1::::<>EditorScript<><>0<>1<><>::
+GLBObjectSpawner.gd::GDScript/GDScript::-1::1750728517::0::1::::GLBObjectSpawner<>Node3D<><>0<>0<><>::
 ObjectPlacer.gd::GDScript/GDScript::9070601765656331386::1750451468::0::1::::ObjectPlacer<>Node3D<><>0<>0<><>::
-SimpleObjectSpawner.gd::GDScript::2503902112255451369::1750454398::0::1::::SimpleObjectSpawner<>Node3D<><>0<>0<><>::
-Target.gd::GDScript/GDScript::6547273863287765595::1750340209::0::1::::Target<>CharacterBody3D<><>0<>0<><>::
+SimpleObjectSpawner.gd::GDScript/GDScript::2503902112255451369::1750454398::0::1::::SimpleObjectSpawner<>Node3D<><>0<>0<><>::
+Target.gd::GDScript/GDScript::6547273863287765595::1750728517::0::1::::Target<>CharacterBody3D<><>0<>0<><>::

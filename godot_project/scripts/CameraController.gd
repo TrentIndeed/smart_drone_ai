@@ -23,7 +23,10 @@ func _ready():
 	camera = $Camera3D
 	# Find the drone
 	await get_tree().create_timer(0.1).timeout  # Wait for drone to be created
-	drone = get_tree().get_first_node_in_group("drone")
+	drone = get_tree().get_first_node_in_group("drones")
+	if not drone:
+		# Try the old group name as fallback
+		drone = get_tree().get_first_node_in_group("drone")
 	if not drone:
 		print("Warning: No drone found for camera to follow")
 	else:
@@ -43,9 +46,14 @@ func _process(delta):
 	# Calculate movement direction from velocity with heavy smoothing
 	var raw_velocity = Vector3.ZERO
 	
-	# Try to get velocity from drone if it's a CharacterBody3D
+	# Try to get velocity from drone based on its type
 	if drone is CharacterBody3D:
 		raw_velocity = drone.velocity
+	elif drone is VehicleBody3D or drone is RigidBody3D:
+		raw_velocity = drone.linear_velocity
+	elif drone.has_method("get_linear_velocity"):
+		# For custom physics bodies like AeroBody3D
+		raw_velocity = drone.get_linear_velocity()
 	else:
 		# Fallback: calculate from position change
 		var position_change = drone_position - last_drone_position
