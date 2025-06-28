@@ -1,6 +1,0 @@
-res://addons/GLB format/tree.glb.res
-res://default_env.tres
-res://scenes/Main.tscn
-res://scripts/DroneFlightAdapter.gd
-res://scripts/DroneFlightController.gd
-res://scripts/Target.gd

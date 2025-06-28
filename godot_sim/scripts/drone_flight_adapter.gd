@@ -42,7 +42,7 @@ enum FlightMode {
 @export var target_altitude: float = 0.0
 
 @export_group("Auto Chase Mode")
-@export var auto_mode_enabled: bool = false  # Toggle for auto chase mode
+@export var auto_mode_enabled: bool = true  # Toggle for auto chase mode
 @export var chase_speed: float = 3.0  # Speed when chasing target
 @export var chase_height: float = 2.0  # Preferred height when chasing
 @export var min_chase_distance: float = 1.5  # Minimum distance to maintain from target
@@ -226,8 +226,12 @@ func _update_flight_control(delta: float):
 	
 	# Debug output every 3 seconds
 	if fmod(Time.get_time_dict_from_system().get("second", 0), 3) == 0:
+		print("FLIGHT CONTROL DEBUG:")
+		print("  Current mode: ", current_flight_mode)
+		print("  Auto enabled: ", auto_mode_enabled)
 		if auto_mode_enabled:
-			print("AUTO_CHASE - Target: ", chase_target_position, " Distance: ", position.distance_to(chase_target_position))
+			print("  AUTO_CHASE - Target: ", chase_target_position, " Distance: ", position.distance_to(chase_target_position))
+			print("  Control inputs: P=", pitch_input, " R=", roll_input, " Y=", yaw_input, " T=", throttle_input)
 
 func _manual_flight_control():
 	"""Direct control - no stabilization"""
@@ -620,7 +624,7 @@ func _apply_attitude_control(state: PhysicsDirectBodyState3D):
 	var rotor_positions = _get_rotor_positions()
 	
 	# Calculate attitude control strength based on current inputs
-	var control_strength = 8.0  # Reduced from previous implementation
+	var control_strength = 15.0  # Increased for better movement response
 	
 	# Apply pitch torque (around X axis)
 	if abs(pitch_input) > 0.01:
@@ -658,20 +662,23 @@ func _find_and_track_target():
 
 func _debug_auto_chase():
 	"""Debug visualization for auto chase mode"""
-	if not current_target_node:
-		return
-		
-	# Draw debug lines to target (would need a debug draw system in a real implementation)
-	var to_target = chase_target_position - position
-	var distance = to_target.length()
-	
 	# Print debug info occasionally
 	if Engine.get_process_frames() % 60 == 0:  # Every second
 		print("AUTO_CHASE DEBUG:")
-		print("  Target distance: ", distance)
-		print("  Chase target pos: ", chase_target_position) 
-		print("  Current inputs - P:", pitch_input, " R:", roll_input, " Y:", yaw_input)
-		print("  Altitude: ", position.y, " Target alt: ", chase_height)
+		print("  Auto mode enabled: ", auto_mode_enabled)
+		print("  Flight mode: ", current_flight_mode)
+		print("  Target node found: ", current_target_node != null)
+		
+		if current_target_node:
+			var to_target = chase_target_position - position
+			var distance = to_target.length()
+			print("  Target distance: ", distance)
+			print("  Chase target pos: ", chase_target_position) 
+			print("  Current inputs - P:", pitch_input, " R:", roll_input, " Y:", yaw_input, " T:", throttle_input)
+			print("  Altitude: ", position.y, " Target alt: ", chase_height)
+			print("  Velocity: ", linear_velocity.length())
+		else:
+			print("  NO TARGET FOUND - searching...")
 
 # Public API additions for auto mode
 func enable_auto_mode(enabled: bool):
@@ -680,10 +687,20 @@ func enable_auto_mode(enabled: bool):
 	if enabled:
 		current_flight_mode = FlightMode.AUTO_CHASE
 		_find_and_track_target()
-		print("Auto chase mode enabled")
+		print("Auto chase mode enabled - Flight mode: ", current_flight_mode)
+		
+		# Force immediate target search
+		call_deferred("_find_and_track_target")
+		
+		# Debug: List all available targets
+		var targets = get_tree().get_nodes_in_group("target")
+		print("Available targets in scene: ", targets.size())
+		for target in targets:
+			print("  - Target: ", target.name, " at ", target.position)
 	else:
 		current_flight_mode = FlightMode.STABILIZE
 		current_target_node = null
+		auto_mode_enabled = false
 		print("Auto chase mode disabled")
 
 func is_auto_mode_enabled() -> bool:
@@ -755,31 +772,36 @@ func _auto_chase_control(delta: float):
 		_stabilized_flight_control(delta)
 		return
 	
-	# Calculate control inputs to move toward target
+	# Calculate control inputs to move toward target (IMPROVED)
 	var horizontal_distance = Vector2(to_target.x, to_target.z).length()
+	
+	print("AUTO_CHASE: Distance=", horizontal_distance, " Target=", chase_target_position, " Drone=", position)
 	
 	if horizontal_distance > 0.1:  # Only move if there's significant distance
 		var normalized_horizontal = Vector2(to_target.x, to_target.z).normalized()
 		
-		# Calculate pitch and roll inputs (limit movement speed)
-		var movement_strength = clamp(horizontal_distance / 5.0, 0.0, 1.0)  # Scale input based on distance
-		pitch_input = clamp(-normalized_horizontal.y * movement_strength, -0.6, 0.6)  # Forward/backward
-		roll_input = clamp(normalized_horizontal.x * movement_strength, -0.6, 0.6)   # Left/right
+		# MUCH stronger movement - make it actually move!
+		var movement_strength = clamp(horizontal_distance / 2.0, 0.3, 1.0)  # Minimum 0.3, faster scaling
+		pitch_input = clamp(-normalized_horizontal.y * movement_strength, -0.8, 0.8)  # Increased range
+		roll_input = clamp(normalized_horizontal.x * movement_strength, -0.8, 0.8)   # Increased range
 		
-		# Rotate to face target
+		# Rotate to face target more aggressively
 		var target_direction = Vector2(to_target.x, to_target.z).normalized()
 		var current_forward = Vector2(-transform.basis.z.x, -transform.basis.z.z).normalized()
 		var angle_diff = target_direction.angle_to(current_forward)
-		yaw_input = clamp(angle_diff * 0.5, -0.3, 0.3)  # Gentle rotation toward target
+		yaw_input = clamp(angle_diff * 1.0, -0.5, 0.5)  # Stronger yaw control
+		
+		print("AUTO_CHASE: Inputs P=", pitch_input, " R=", roll_input, " Y=", yaw_input, " Strength=", movement_strength)
 	else:
 		pitch_input = 0.0
 		roll_input = 0.0
 		yaw_input = 0.0
+		print("AUTO_CHASE: Too close, stopping movement")
 	
-	# Maintain altitude
+	# Maintain altitude with some throttle boost for movement
 	target_altitude = chase_height
 	altitude_hold_enabled = true
-	throttle_input = 0.0  # Let altitude hold manage vertical movement
+	throttle_input = 0.1  # Small boost to help with movement dynamics
 	
 	# Use stabilized flight control to execute the movement
 	_stabilized_flight_control(delta)

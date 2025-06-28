@@ -53,7 +53,12 @@ The drone auto mode has been **fixed** to prevent uncontrolled ascent and now in
 2. Set `auto_fix_falling = true` and `auto_fix_target_errors = true`
 3. Script will automatically monitor and fix issues
 
-### **Method 4: Manual Script Control**
+### **Method 4: Auto Chase Fix Test (For Movement Issues)**
+1. Attach `AutoChaseFixTest.gd` script to a Node in your main scene
+2. Set `enable_on_start = true` and `debug_movement = true`
+3. Script will automatically enable auto mode and debug movement issues
+
+### **Method 5: Manual Script Control**
 ```gdscript
 # Get the drone
 var drone = get_tree().get_first_node_in_group("drones")
@@ -100,6 +105,9 @@ When **AUTO_CHASE** mode is enabled, the drone will:
 | **[F1]** | Emergency Fix Falling Drone (if DroneTestFix is active) |
 | **[F2]** | Fix Target Model (if DroneTestFix is active) |
 | **[F3]** | Force Diagnostics (if DroneTestFix is active) |
+| **[F5]** | Force Enable Auto Chase (if AutoChaseFixTest is active) |
+| **[F6]** | Disable Auto Chase (if AutoChaseFixTest is active) |
+| **[F7]** | Reset Positions (if AutoChaseFixTest is active) |
 
 ## 🔧 Testing Setup
 
@@ -164,9 +172,15 @@ Target health: 2/2
 - Check console for "Auto mode: Found target" message
 
 ### **Drone Not Moving Toward Target?**
-- Ensure target distance > `min_chase_distance` (1.5 units)
-- Check if target is moving too fast
-- Verify drone flight mode shows "AUTO_CHASE"
+- ✅ **Fixed**: Increased movement strength and control inputs
+- ✅ **Fixed**: Stronger attitude control (15.0 instead of 8.0)
+- ✅ **Fixed**: Better debug output to track movement
+- **If still not moving**: 
+  - Use `AutoChaseFixTest.gd` for detailed movement debugging
+  - Check console for "AUTO_CHASE: Distance=" messages
+  - Ensure target distance > `min_chase_distance` (1.5 units)
+  - Verify drone flight mode shows "AUTO_CHASE"
+  - Press [F5] to force enable auto chase mode
 
 ### **Emergency Recovery**
 If issues persist, use the emergency controls:
@@ -197,7 +211,7 @@ Your auto mode is working correctly if:
 2. ✅ Drone does NOT fall through the ground/floor
 3. ✅ No "RunningModel" node errors in console
 4. ✅ Pressing [5] toggles auto mode with console feedback
-5. ✅ In auto mode, drone smoothly approaches target
+5. ✅ In auto mode, drone ACTIVELY MOVES toward target (not just hovers)
 6. ✅ Drone maintains safe distance from target
 7. ✅ Drone follows moving targets intelligently
 8. ✅ Emergency stop ([Space]) works immediately

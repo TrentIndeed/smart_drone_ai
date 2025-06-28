@@ -100,7 +100,7 @@ func _setup_game_objects():
 	# Create spawner (GLB or simple fallback)
 	if use_simple_spawner:
 		if not simple_spawner:
-			var SimpleSpawnerScript = load("res://scripts/SimpleObjectSpawner.gd")
+			var SimpleSpawnerScript = load("res://scripts/simple_object_spawner.gd")
 			if SimpleSpawnerScript:
 				simple_spawner = SimpleSpawnerScript.new()
 				simple_spawner.name = "SimpleSpawner"
@@ -116,7 +116,7 @@ func _setup_game_objects():
 	else:
 		# Create GLB spawner if it doesn't exist
 		if not glb_spawner:
-			var GLBSpawnerScript = load("res://scripts/GLBObjectSpawner.gd")
+			var GLBSpawnerScript = load("res://scripts/glb_object_spawner.gd")
 			if GLBSpawnerScript:
 				glb_spawner = GLBSpawnerScript.new()
 				glb_spawner.name = "GLBSpawner"
@@ -178,7 +178,7 @@ func _setup_game_objects():
 	print("Using existing aerodynamic drone at: ", drone.position if drone is Node3D else "Unknown")
 	
 	# Create target
-	target = preload("res://scenes/Target.tscn").instantiate()
+	target = preload("res://scenes/target.tscn").instantiate()
 	add_child(target)
 	# Find a safe spawn position away from obstacles
 	var target_spawn_pos = _find_safe_spawn_position()

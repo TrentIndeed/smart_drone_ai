@@ -1,8 +1,8 @@
 [gd_scene load_steps=10 format=3 uid="uid://dgtefqeck6g0a"]
 
-[ext_resource type="Script" uid="uid://mwhribdks2xj" path="res://scripts/DroneFlightFallback.gd" id="1"]
-[ext_resource type="Script" uid="uid://bhwkxvnmssfaf" path="res://scripts/DroneFlightController.gd" id="2"]
-[ext_resource type="PackedScene" uid="uid://b3m4n5p6q7r8s" path="res://scenes/Target.tscn" id="3"]
+[ext_resource type="Script" uid="uid://mwhribdks2xj" path="res://scripts/drone_flight_fallback.gd" id="1"]
+[ext_resource type="Script" uid="uid://bhwkxvnmssfaf" path="res://scripts/drone_flight_controller.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://b3m4n5p6q7r8s" path="res://scenes/target.tscn" id="3"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_1"]
 friction = 0.3

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://dq8xj2nv4k1x3"]
+[gd_scene load_steps=7 format=3 uid="uid://c64yx5g0c6vop"]
 
 [ext_resource type="Script" uid="uid://y0g5htfa44ot" path="res://scripts/DroneFlightAdapter.gd" id="1_drone_flight"]
 [ext_resource type="PackedScene" uid="uid://dkjvxd8dhwkil" path="res://models/parrot_camo_drone_gltf/scene.gltf" id="2_drone_model"]

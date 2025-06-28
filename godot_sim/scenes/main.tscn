@@ -1,10 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://cis5vwb328213"]
+[gd_scene load_steps=6 format=3 uid="uid://d3rlxdclhwhne"]
 
-[ext_resource type="PackedScene" uid="uid://bh1k2l3m4n5o6" path="res://scenes/Ground.tscn" id="2_ground"]
-[ext_resource type="Script" uid="uid://cgdfud7xovi6v" path="res://scripts/CameraController.gd" id="3_camera"]
-[ext_resource type="PackedScene" uid="uid://dq8xj2nv4k1x3" path="res://scenes/Drone.tscn" id="4_drone"]
-[ext_resource type="Script" uid="uid://bampnmtca12ey" path="res://scripts/AIInterface.gd" id="5_ai_interface"]
-[ext_resource type="PackedScene" uid="uid://b3m4n5p6q7r8s" path="res://scenes/Target.tscn" id="6_target"]
+[ext_resource type="PackedScene" uid="uid://dok2j44hf3gjn" path="res://scenes/Ground.tscn" id="2_ground"]
+[ext_resource type="Script" path="res://scripts/CameraController.gd" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://c64yx5g0c6vop" path="res://scenes/Drone.tscn" id="4_drone"]
+[ext_resource type="Script" path="res://scripts/AIInterface.gd" id="5_ai_interface"]
+[ext_resource type="PackedScene" uid="uid://dpbrhjliywj0h" path="res://scenes/Target.tscn" id="6_target"]
 
 [node name="Main" type="Node3D"]
 
@@ -23,8 +23,10 @@ shadow_enabled = true
 [node name="Ground" parent="." instance=ExtResource("2_ground")]
 
 [node name="AerodynamicDrone" parent="." instance=ExtResource("4_drone")]
+collision_mask = 6
 mass = 1.2
 hover_throttle = 0.5
+auto_mode_enabled = false
 
 [node name="Target" parent="." instance=ExtResource("6_target")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)
