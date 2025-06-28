@@ -1,0 +1,191 @@
+agent:
+  name: "hunter_drone_ai"
+  version: "2.1.0"
+  description: "Intelligent drone for target interception missions"
+
+system_1:
+  name: "S1_Perception_Control"
+  update_rate: 200.0  # Hz
+  
+  perception:
+    filters:
+      position_smoothing: true
+      noise_reduction: true
+      kalman_filter: true
+    
+    threat_detection:
+      collision_lookahead: 2.0  # seconds
+      safety_distance: 3.0      # meters
+      critical_distance: 1.5    # meters
+    
+    prediction:
+      target_prediction_time: 1.0  # seconds
+      history_window: 50           # samples
+  
+  control:
+    pid_position:
+      kp: [2.0, 2.0, 2.0]  # X, Y, Z
+      ki: [0.1, 0.1, 0.1]
+      kd: [0.5, 0.5, 0.5]
+    
+    pid_orientation:
+      kp: [3.0, 3.0, 1.5]  # Pitch, Roll, Yaw
+      ki: [0.1, 0.1, 0.05]
+      kd: [0.8, 0.8, 0.3]
+    
+    limits:
+      max_tilt_angle: 45.0      # degrees
+      max_thrust: 0.8           # 0.0 to 1.0
+      min_altitude: 1.0         # meters
+      max_altitude: 100.0       # meters
+      max_speed: 15.0           # m/s
+
+system_2:
+  name: "S2_Strategic_Planner"
+  update_rate: 8.0  # Hz
+  
+  planning:
+    strategy_types:
+      - "direct_intercept"
+      - "predictive_intercept"
+      - "flanking_maneuver"
+      - "ambush_intercept"
+      - "pursuit_intercept"
+    
+    default_strategy: "predictive_intercept"
+    strategy_switch_threshold: 0.3  # Performance threshold
+    
+    horizon:
+      short_term: 5.0   # seconds
+      medium_term: 15.0 # seconds
+      long_term: 60.0   # seconds
+  
+  decision_making:
+    confidence_threshold: 0.7
+    exploration_rate: 0.1
+    risk_tolerance: 0.3
+    
+  memory:
+    episodic_memory: true
+    working_memory_size: 100
+    long_term_memory: true
+    
+communication:
+  interfaces:
+    simulation:
+      enabled: true
+      host: "localhost"
+      port: 8080
+      protocol: "TCP"
+      
+    real_hardware:
+      enabled: false
+      device: "/dev/ttyUSB0"
+      baudrate: 57600
+      protocol: "MAVLink"
+  
+  data_rates:
+    state_updates: 200.0  # Hz
+    commands: 200.0       # Hz
+    telemetry: 10.0       # Hz
+    
+sensors:
+  gps:
+    enabled: true
+    noise_std: 0.5      # meters
+    update_rate: 10.0   # Hz
+    
+  imu:
+    enabled: true
+    accel_noise: 0.1    # m/s²
+    gyro_noise: 0.05    # rad/s
+    update_rate: 200.0  # Hz
+    
+  altimeter:
+    enabled: true
+    noise_std: 0.1      # meters
+    update_rate: 50.0   # Hz
+    range: [0, 200]     # meters
+    
+  camera:
+    enabled: true
+    resolution: [640, 480]
+    fov_degrees: 60
+    update_rate: 30.0   # Hz
+    detection_range: 50.0  # meters
+    
+  lidar:
+    enabled: true
+    range: 100.0        # meters
+    accuracy: 0.05      # meters
+    angular_resolution: 1.0  # degrees
+    update_rate: 20.0   # Hz
+
+safety:
+  emergency_conditions:
+    low_battery_threshold: 15.0     # percent
+    critical_battery: 10.0          # percent
+    max_mission_time: 1800.0        # seconds (30 min)
+    
+  geofencing:
+    enabled: true
+    boundary_type: "polygon"
+    altitude_limits: [0.5, 150.0]   # meters
+    
+  fail_safes:
+    return_to_home: true
+    emergency_landing: true
+    motor_failure_recovery: true
+    
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  
+  destinations:
+    console: true
+    file: true
+    remote: false
+    
+  file_settings:
+    directory: "logs/"
+    max_size: "100MB"
+    rotation: true
+    retention_days: 30
+    
+  data_logging:
+    flight_data: true
+    decisions: true
+    performance_metrics: true
+    sensor_data: false  # High volume
+    
+performance:
+  metrics:
+    track_success_rate: true
+    track_efficiency: true
+    track_safety: true
+    track_adaptation: true
+    
+  optimization:
+    auto_tune_pids: false
+    adaptive_strategies: true
+    learning_rate: 0.01
+    
+  profiling:
+    enabled: false
+    sample_rate: 1.0   # Hz
+    
+training:
+  enabled: false
+  
+  curriculum:
+    enabled: true
+    auto_advance: true
+    difficulty_levels: 5
+    
+  reinforcement_learning:
+    enabled: false
+    algorithm: "PPO"
+    learning_rate: 0.0003
+    
+  data_collection:
+    episodes_per_session: 50
+    success_threshold: 0.8 

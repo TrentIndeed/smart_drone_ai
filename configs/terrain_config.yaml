@@ -1,0 +1,108 @@
+terrain:
+  name: "forest_environment"
+  type: "procedural"
+  
+generation:
+  seed: 12345
+  size: [1000, 1000]  # meters
+  resolution: 2.0     # meters per sample
+  
+elevation:
+  max_height: 50.0    # meters
+  min_height: 0.0
+  noise_scale: 0.01   # Perlin noise scale
+  octaves: 4
+  persistence: 0.5
+  lacunarity: 2.0
+  
+vegetation:
+  forest_density: 0.7  # 0.0 to 1.0
+  tree_types:
+    - name: "oak"
+      frequency: 0.4
+      height_range: [8, 15]
+      width_range: [3, 6]
+    - name: "pine"
+      frequency: 0.4
+      height_range: [12, 25]
+      width_range: [2, 4]
+    - name: "birch"
+      frequency: 0.2
+      height_range: [6, 12]
+      width_range: [2, 3]
+  
+  undergrowth:
+    enabled: true
+    density: 0.3
+    height_range: [0.5, 2.0]
+    
+obstacles:
+  rocks:
+    enabled: true
+    density: 0.1       # per square meter
+    size_range: [0.5, 3.0]
+    
+  fallen_logs:
+    enabled: true
+    density: 0.05
+    length_range: [3, 8]
+    width_range: [0.3, 0.8]
+    
+  buildings:
+    enabled: false
+    density: 0.001
+    
+water_bodies:
+  rivers:
+    enabled: true
+    count: 2
+    width_range: [5, 15]
+    depth_range: [0.5, 2.0]
+    
+  lakes:
+    enabled: true
+    count: 1
+    size_range: [20, 50]
+    depth_range: [1.0, 5.0]
+
+paths:
+  dirt_roads:
+    enabled: true
+    count: 3
+    width: 3.0
+    
+  hiking_trails:
+    enabled: true
+    count: 5
+    width: 1.0
+    
+lighting:
+  ambient_level: 0.3   # 0.0 to 1.0
+  sun_angle: 45        # degrees
+  shadows: true
+  fog_density: 0.1     # 0.0 to 1.0
+  
+physics:
+  gravity: -9.81       # m/s²
+  air_density: 1.225   # kg/m³
+  wind:
+    enabled: true
+    base_speed: 2.0    # m/s
+    direction: 225     # degrees (SW)
+    turbulence: 0.3    # 0.0 to 1.0
+    gusts:
+      enabled: true
+      frequency: 0.1   # Hz
+      intensity: 1.5   # multiplier
+      
+collision:
+  tree_collision: true
+  rock_collision: true
+  terrain_collision: true
+  water_collision: false  # Drone can fly over water
+  
+performance:
+  level_of_detail: true
+  max_visible_distance: 500.0  # meters
+  culling_enabled: true
+  texture_streaming: true 

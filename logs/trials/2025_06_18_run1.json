@@ -1,0 +1,14 @@
+{
+  "trial_id": "2025_06_18_run1",
+  "timestamp": "2025-06-18T10:00:00Z",
+  "mission_type": "intercept",
+  "target_intercepted": false,
+  "duration_seconds": 120.5,
+  "distance_traveled": 450.2,
+  "avg_speed": 3.74,
+  "obstacles_hit": 2,
+  "emergency_activations": 1,
+  "strategy_changes": 3,
+  "final_distance_to_target": 15.7,
+  "notes": "Target used evasive maneuvers, drone struggled with tight turns"
+} 

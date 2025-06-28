@@ -1,0 +1,225 @@
+{
+  "successful_strategies": [],
+  "failed_attempts": [],
+  "target_behaviors": [],
+  "obstacle_patterns": [],
+  "interception_points": [],
+  "performance_metrics": [
+    {
+      "timestamp": 1750038170.2048078,
+      "drone_position": [
+        2.0,
+        2.0
+      ],
+      "target_position": [
+        8.0,
+        8.0
+      ],
+      "distance_to_target": 8.48528137423857,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038171.697453,
+      "drone_position": [
+        2.5,
+        2.5
+      ],
+      "target_position": [
+        7.5,
+        8.5
+      ],
+      "distance_to_target": 7.810249675906654,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038173.2225454,
+      "drone_position": [
+        3.0,
+        3.0
+      ],
+      "target_position": [
+        7.0,
+        9.0
+      ],
+      "distance_to_target": 7.211102550927978,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038228.1569345,
+      "drone_position": [
+        2.0,
+        2.0
+      ],
+      "target_position": [
+        8.0,
+        8.0
+      ],
+      "distance_to_target": 8.48528137423857,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038229.6522954,
+      "drone_position": [
+        2.5,
+        2.5
+      ],
+      "target_position": [
+        7.5,
+        8.5
+      ],
+      "distance_to_target": 7.810249675906654,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038231.1635053,
+      "drone_position": [
+        3.0,
+        3.0
+      ],
+      "target_position": [
+        7.0,
+        9.0
+      ],
+      "distance_to_target": 7.211102550927978,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038906.9346213,
+      "drone_position": [
+        2.0,
+        2.0
+      ],
+      "target_position": [
+        8.0,
+        8.0
+      ],
+      "distance_to_target": 8.48528137423857,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038908.4272773,
+      "drone_position": [
+        2.5,
+        2.5
+      ],
+      "target_position": [
+        7.5,
+        8.5
+      ],
+      "distance_to_target": 7.810249675906654,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750038909.932145,
+      "drone_position": [
+        3.0,
+        3.0
+      ],
+      "target_position": [
+        7.0,
+        9.0
+      ],
+      "distance_to_target": 7.211102550927978,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.8999999999999999,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8799999999999999
+    },
+    {
+      "timestamp": 1750039351.5571766,
+      "drone_position": [
+        2.0,
+        2.0
+      ],
+      "target_position": [
+        8.0,
+        8.0
+      ],
+      "distance_to_target": 8.48528137423857,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.6,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8200000000000001
+    },
+    {
+      "timestamp": 1750039352.3269672,
+      "drone_position": [
+        2.5,
+        2.5
+      ],
+      "target_position": [
+        7.5,
+        8.5
+      ],
+      "distance_to_target": 7.810249675906654,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.6,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8200000000000001
+    },
+    {
+      "timestamp": 1750039353.1609778,
+      "drone_position": [
+        3.0,
+        3.0
+      ],
+      "target_position": [
+        7.0,
+        9.0
+      ],
+      "distance_to_target": 7.211102550927978,
+      "plan_progress": 0.0,
+      "reasoning_quality": 0.6,
+      "stuck": false,
+      "inefficient": false,
+      "performing_well": true,
+      "performance_score": 0.8200000000000001
+    }
+  ]
+}

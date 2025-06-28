@@ -1,0 +1,273 @@
+[gd_scene load_steps=10 format=3 uid="uid://dgtefqeck6g0a"]
+
+[ext_resource type="Script" uid="uid://mwhribdks2xj" path="res://scripts/DroneFlightFallback.gd" id="1"]
+[ext_resource type="Script" uid="uid://bhwkxvnmssfaf" path="res://scripts/DroneFlightController.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://b3m4n5p6q7r8s" path="res://scenes/Target.tscn" id="3"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_1"]
+friction = 0.3
+bounce = 0.1
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+size = Vector3(0.8, 0.2, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+albedo_color = Color(0.2, 0.2, 0.2, 1)
+metallic = 0.8
+roughness = 0.2
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(0.8, 0.2, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2"]
+albedo_color = Color(0.3, 0.5, 0.2, 1)
+roughness = 0.8
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.4, 0.6, 1, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.9, 1, 1)
+ambient_light_energy = 0.3
+
+[node name="Main" type="Node3D"]
+
+[node name="DroneFlight" type="VehicleBody3D" parent="."]
+collision_mask = 6
+mass = 2.5
+physics_material_override = SubResource("PhysicsMaterial_1")
+script = ExtResource("1")
+rotor_spacing = 0.4
+max_rotor_speed = 2000.0
+rotor_response_time = 0.15
+hover_throttle = 0.6
+max_tilt_angle = 35.0
+max_yaw_rate = 120.0
+max_climb_rate = 8.0
+stability_factor = 2.5
+
+[node name="DroneFlightController" type="Node" parent="DroneFlight"]
+script = ExtResource("2")
+
+[node name="DroneBody" type="MeshInstance3D" parent="DroneFlight"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="DroneFrame" type="Node3D" parent="DroneFlight"]
+
+[node name="CenterFrame" type="MeshInstance3D" parent="DroneFlight/DroneFrame"]
+transform = Transform3D(0.6, 0, 0, 0, 0.1, 0, 0, 0, 0.6, 0, 0, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="RotorArms" type="Node3D" parent="DroneFlight/DroneFrame"]
+
+[node name="FrontRightArm" type="MeshInstance3D" parent="DroneFlight/DroneFrame/RotorArms"]
+transform = Transform3D(0.1, 0, 0, 0, 0.05, 0, 0, 0, 0.4, 0.3, 0, -0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="FrontLeftArm" type="MeshInstance3D" parent="DroneFlight/DroneFrame/RotorArms"]
+transform = Transform3D(0.1, 0, 0, 0, 0.05, 0, 0, 0, 0.4, -0.3, 0, -0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="RearLeftArm" type="MeshInstance3D" parent="DroneFlight/DroneFrame/RotorArms"]
+transform = Transform3D(0.1, 0, 0, 0, 0.05, 0, 0, 0, 0.4, -0.3, 0, 0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="RearRightArm" type="MeshInstance3D" parent="DroneFlight/DroneFrame/RotorArms"]
+transform = Transform3D(0.1, 0, 0, 0, 0.05, 0, 0, 0, 0.4, 0.3, 0, 0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Rotors" type="Node3D" parent="DroneFlight/DroneFrame"]
+
+[node name="Rotor1" type="MeshInstance3D" parent="DroneFlight/DroneFrame/Rotors"]
+transform = Transform3D(0.15, 0, 0, 0, 0.02, 0, 0, 0, 0.15, 0.3, 0.1, -0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Rotor2" type="MeshInstance3D" parent="DroneFlight/DroneFrame/Rotors"]
+transform = Transform3D(0.15, 0, 0, 0, 0.02, 0, 0, 0, 0.15, -0.3, 0.1, -0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Rotor3" type="MeshInstance3D" parent="DroneFlight/DroneFrame/Rotors"]
+transform = Transform3D(0.15, 0, 0, 0, 0.02, 0, 0, 0, 0.15, -0.3, 0.1, 0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Rotor4" type="MeshInstance3D" parent="DroneFlight/DroneFrame/Rotors"]
+transform = Transform3D(0.15, 0, 0, 0, 0.02, 0, 0, 0, 0.15, 0.3, 0.1, 0.3)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DroneFlight"]
+transform = Transform3D(0.8, 0, 0, 0, 0.1, 0, 0, 0, 0.8, 0, 0, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="CameraPivot" type="Node3D" parent="DroneFlight"]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="DroneFlight/CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
+
+[node name="UI" type="Control" parent="DroneFlight"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FlightStatus" type="VBoxContainer" parent="DroneFlight/UI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -150.0
+offset_right = 250.0
+offset_bottom = -10.0
+grow_vertical = 0
+
+[node name="FlightModeLabel" type="Label" parent="DroneFlight/UI/FlightStatus"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Flight Mode: STABILIZE"
+
+[node name="AltitudeLabel" type="Label" parent="DroneFlight/UI/FlightStatus"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Altitude: 0.0m"
+
+[node name="VelocityLabel" type="Label" parent="DroneFlight/UI/FlightStatus"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Velocity: 0.0 m/s"
+
+[node name="HoveringLabel" type="Label" parent="DroneFlight/UI/FlightStatus"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Status: Landed"
+
+[node name="Controls" type="VBoxContainer" parent="DroneFlight/UI"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -130.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="ControlsTitle" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+text = "CONTROLS:"
+
+[node name="ThrottleLabel" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "W/S - Throttle"
+
+[node name="PitchLabel" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Arrows - Pitch/Roll"
+
+[node name="YawLabel" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "A/D - Yaw"
+
+[node name="ModeLabel" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "1/2/3 - Modes"
+
+[node name="EmergencyLabel" type="Label" parent="DroneFlight/UI/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+text = "SPACE - Emergency"
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 2
+
+[node name="GroundMesh" type="MeshInstance3D" parent="Ground"]
+transform = Transform3D(20, 0, 0, 0, 0.1, 0, 0, 0, 20, 0, 0, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_2")
+
+[node name="GroundCollision" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(20, 0, 0, 0, 0.1, 0, 0, 0, 20, 0, 0, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="GridLines" type="Node3D" parent="Ground"]
+
+[node name="GridLineX1" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 20, -10, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineX2" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 20, -5, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineX3" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 20, 0, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineX4" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 20, 5, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineX5" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 20, 10, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineZ1" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(20, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0.06, -10)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineZ2" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(20, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0.06, -5)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineZ3" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(20, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0.06, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineZ4" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(20, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0.06, 5)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="GridLineZ5" type="MeshInstance3D" parent="Ground/GridLines"]
+transform = Transform3D(20, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0.06, 10)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 4, 0)
+shadow_enabled = true
+
+[node name="Target" parent="." instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 5)

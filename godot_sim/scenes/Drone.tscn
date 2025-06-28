@@ -1,0 +1,42 @@
+[gd_scene load_steps=7 format=3 uid="uid://dq8xj2nv4k1x3"]
+
+[ext_resource type="Script" uid="uid://y0g5htfa44ot" path="res://scripts/DroneFlightAdapter.gd" id="1_drone_flight"]
+[ext_resource type="PackedScene" uid="uid://dkjvxd8dhwkil" path="res://models/parrot_camo_drone_gltf/scene.gltf" id="2_drone_model"]
+[ext_resource type="Script" uid="uid://eimidoqkqhnu" path="res://scripts/DroneAI_Interface.gd" id="3_ai_bridge"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_drone"]
+resource_name = "DroneMaterial"
+friction = 0.3
+bounce = 0.1
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_drone_body"]
+size = Vector3(0.8, 0.2, 0.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_area"]
+size = Vector3(0.3, 0.15, 0.3)
+
+[node name="Drone" type="RigidBody3D"]
+collision_mask = 2
+physics_material_override = SubResource("PhysicsMaterial_drone")
+script = ExtResource("1_drone_flight")
+metadata/_custom_type_script = "uid://3iji867c81k5"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_drone_body")
+
+[node name="DroneModel" parent="." instance=ExtResource("2_drone_model")]
+transform = Transform3D(0.03, 0, 0, 0, 0.03, 0, 0, 0, 0.03, 0, 0, 0)
+
+[node name="TrailPoints" type="Node3D" parent="."]
+
+[node name="TargetIndicator" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.5, 0, 0.3, 0)
+visible = false
+
+[node name="Area3D" type="Area3D" parent="."]
+
+[node name="AreaCollision" type="CollisionShape3D" parent="Area3D"]
+shape = SubResource("BoxShape3D_area")
+
+[node name="AI_Bridge" type="Node" parent="."]
+script = ExtResource("3_ai_bridge")
