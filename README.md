@@ -4,7 +4,7 @@
 
 This project simulates an intelligent drone intercepting a moving target in a 3D forest environment using:
 
-* **Godot 4.5** for 3D simulation
+* **Godot 4.4** for 3D simulation
 * **LangGraph + LLMs** for high-level planning (System 2 / S2)
 * **Python control module** for low-level execution (System 1 / S1)
 * Modular perception with switchable real-time/omniscient views
@@ -30,60 +30,6 @@ drone-ai-project/
 ├── shared/                    # Schemas, utils, interfaces
 └── README.md
 ```
-drone-ai-project/
-├── ai_core/
-│   ├── configs/
-│   │   └── missions/
-│   │       └── sample_mission.yaml
-│   ├── interface/
-│   │   ├── sim_interface.py
-│   │   └── real_interface.py
-│   ├── memory/
-│   │   ├── episodic_store.py
-│   │   ├── reward_logger.py
-│   │   └── curriculum_tracker.py
-│   ├── run_agent.py
-│   ├── s1_perception_control/
-│   │   ├── perception_module.py
-│   │   ├── control_module.py
-│   │   └── sensor_models/
-│   │       └── basic_model.py
-│   ├── s2_planner/
-│   │   ├── mission_parser.py
-│   │   ├── strategy_planner.py
-│   │   ├── tools/
-│   │   │   └── predict_target.py
-│   │   └── workflows/
-│   │       └── intercept_workflow.py
-│   └── train_llm.py
-├── godot_sim/
-│   ├── assets/
-│   ├── plugins/
-│   │   └── terrain_generator/
-│   ├── project.godot
-│   ├── scenes/
-│   │   ├── main_scene.tscn
-│   │   ├── drone.tscn
-│   │   ├── target.tscn
-│   │   └── terrain.tscn
-│   └── scripts/
-│       ├── drone_controller.gd
-│       ├── game_manager.gd
-│       ├── perception_exporter.gd
-│       ├── socket_client.gd
-│       └── target_behavior.gd
-├── configs/
-│   ├── terrain_config.yaml
-│   └── agent_config.yaml
-├── logs/
-│   └── trials/
-│       └── 2025_06_18_run1.json
-├── shared/
-│   └── schemas.py
-├── docker/
-│   └── Dockerfile
-└── README.md
----
 
 ## 🧠 AI Architecture
 

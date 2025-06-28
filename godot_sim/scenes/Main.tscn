@@ -23,6 +23,8 @@ shadow_enabled = true
 [node name="Ground" parent="." instance=ExtResource("2_ground")]
 
 [node name="AerodynamicDrone" parent="." instance=ExtResource("4_drone")]
+mass = 1.2
+hover_throttle = 0.5
 
 [node name="Target" parent="." instance=ExtResource("6_target")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)

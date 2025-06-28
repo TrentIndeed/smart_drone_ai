@@ -79,7 +79,7 @@ func take_damage(damage: int = 1):
 		# Don't hide the target here - let the GameManager handle it
 	else:
 		# Flash red when hit but not neutralized
-		var running_model = $RunningModel
+		var running_model = get_node_or_null("RunningModel")
 		if running_model:
 			var mesh_instances = _get_mesh_instances_from_model(running_model)
 			for mesh_instance in mesh_instances:
@@ -180,8 +180,8 @@ func _update_panic_mode(delta: float):
 	# Fallback: Always ensure target faces movement direction (even without animation)
 	_update_model_orientation()
 	
-	# Update model color if available
-	var running_model = $RunningModel
+	# Update model color if available (with null safety)
+	var running_model = get_node_or_null("RunningModel")
 	if running_model:
 		var mesh_instances = _get_mesh_instances_from_model(running_model)
 		for mesh_instance in mesh_instances:
@@ -599,11 +599,11 @@ func get_current_stats() -> Dictionary:
 
 func _setup_animation_player():
 	"""Find and setup the animation player for the running model"""
-	var running_model = $RunningModel
+	var running_model = get_node_or_null("RunningModel")
 	if running_model:
 		print("RunningModel found at scale: ", running_model.scale)
 		print("RunningModel scene file path: ", running_model.scene_file_path)
-		
+	
 		# Check for mesh instances and fix materials
 		var mesh_instances = _get_mesh_instances_from_model(running_model)
 		print("Found ", mesh_instances.size(), " mesh instances in running model")
@@ -693,7 +693,7 @@ func _setup_animation_player():
 	print("Target position: ", position)
 	print("Target rotation: ", rotation)
 	if has_node("RunningModel"):
-		var model = $RunningModel
+		var model = get_node_or_null("RunningModel")
 		if model and is_instance_valid(model):
 			print("RunningModel scale: ", model.scale)
 			print("RunningModel position: ", model.position)
@@ -708,7 +708,7 @@ func _implement_animation_fallback():
 	print("Implementing animation fallback - creating enhanced procedural running animation")
 	
 	# Create a more realistic running animation for the model
-	var running_model = $RunningModel
+	var running_model = get_node_or_null("RunningModel")
 	if running_model and is_instance_valid(running_model):
 		# Fast running steps - very quick bob to simulate feet hitting ground
 		var bob_tween = create_tween()

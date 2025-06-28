@@ -15,8 +15,7 @@ Now read the full `README.md` and confirm your understanding of:
 3. Where Godot connects with Python
 4. How the drone control loop works
 
-After that, help me implement [TASK].
-
+After that, help me implement -
 
 # 🛠️ Fix Drone Auto Mode in Godot — Avoid Uncontrolled Ascent
 
@@ -68,9 +67,9 @@ After that, help me implement [TASK].
 - Later, replace logic with S1 JSON `chunk` executor
 
 ## ✏️ Relevant Files
-- `godot_sim/scripts/drone_controller.gd`
-- `godot_sim/scenes/main_scene.tscn`
-- Optional: `target.tscn` for target movement
+- `godot_sim/scripts/DroneFlightController.gd`
+- `godot_sim/scenes/Main.tscn`
+- Optional: `Target.tscn` for target movement
 
 ---
 

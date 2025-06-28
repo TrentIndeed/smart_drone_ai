@@ -2,7 +2,7 @@
 extends RigidBody3D
 class_name Drone
 
-# Pure Aerodynamic Drone Flight - Uses AeroBody3D for realistic physics
+# Pure Aerodynamic Drone Flight - Uses physics-based motion for realistic flight
 
 signal rotor_speed_changed(rotor_index: int, speed: float)
 signal flight_mode_changed(mode: String)
@@ -18,7 +18,8 @@ enum FlightMode {
 	STABILIZE,
 	ALTITUDE_HOLD,
 	LOITER,
-	RTL  # Return to Launch
+	RTL,  # Return to Launch
+	AUTO_CHASE  # New auto-chase mode
 }
 
 @export_group("Drone Configuration")
@@ -28,17 +29,23 @@ enum FlightMode {
 @export var rotor_response_time: float = 0.2  # Time to reach target speed
 
 @export_group("Flight Parameters")
-@export var hover_throttle: float = 0.98  # Throttle needed to hover
+@export var hover_throttle: float = 0.7  # Increased to prevent falling through floor
 @export var max_tilt_angle: float = 15.0  # Maximum tilt in degrees
 @export var max_yaw_rate: float = 90.0  # Max yaw rate in degrees/second
 @export var max_climb_rate: float = 3.0  # Max climb rate in m/s
-@export var thrust_force: float = 25.0  # Total thrust force in Newtons
+@export var thrust_force: float = 15.0  # Reduced total thrust force in Newtons
 
 @export_group("Stability")
 @export var stability_factor: float = 2.0  # How aggressively to stabilize
 @export var auto_level: bool = true  # Automatically level when no input
 @export var altitude_hold_enabled: bool = false
 @export var target_altitude: float = 0.0
+
+@export_group("Auto Chase Mode")
+@export var auto_mode_enabled: bool = false  # Toggle for auto chase mode
+@export var chase_speed: float = 3.0  # Speed when chasing target
+@export var chase_height: float = 2.0  # Preferred height when chasing
+@export var min_chase_distance: float = 1.5  # Minimum distance to maintain from target
 
 @export_group("Control Input")
 @export var pitch_input: float = 0.0  # -1 to 1 (forward/backward)
@@ -56,6 +63,12 @@ var target_position: Vector3 = Vector3.ZERO
 var emergency_mode: bool = false
 var emergency_timer: float = 0.0
 var max_emergency_time: float = 5.0
+
+# Auto chase variables
+var current_target_node: Node3D = null
+var chase_target_position: Vector3 = Vector3.ZERO
+var last_target_position: Vector3 = Vector3.ZERO
+var target_prediction_time: float = 0.5  # How far ahead to predict target movement
 
 # Shooting system
 var shooting_cooldown: float = 0.0
@@ -123,41 +136,48 @@ func _init():
 func _ready():
 	print("DroneFlightAdapter initialized with ", rotor_count, " rotors")
 	print("Node type: RigidBody3D")
-	print("Using manual force application for drone physics")
+	print("Using physics-based motion for drone flight")
 	
 	# Add to drones group for GameManager to find
 	add_to_group("drones")
 	
 	# Set up drone-specific physics properties
-	mass = 1.0  # 1.0kg drone
+	mass = 1.2  # 1.2kg drone (slightly heavier for stability)
 	
 	# Set collision layers properly
 	collision_layer = 1  # Drone layer
-	collision_mask = 2   # Collide with obstacles/ground
+	collision_mask = 6   # Collide with obstacles (layer 2) and ground (layer 3) = 2+4 = 6
 	
-	# Set default flight mode to STABILIZE for stable hovering
-	current_flight_mode = FlightMode.STABILIZE
+	# Set default flight mode
+	if auto_mode_enabled:
+		current_flight_mode = FlightMode.AUTO_CHASE
+		print("Starting in AUTO_CHASE mode")
+	else:
+		current_flight_mode = FlightMode.STABILIZE
+		print("Starting in STABILIZE mode")
 	
-	# Configure RigidBody3D properties for drone flight
-	print("Configuring RigidBody3D-specific properties")
-	# No special properties needed - using manual force application
+	# Initialize rotor speed arrays
+	rotor_speeds.resize(rotor_count)
+	target_rotor_speeds.resize(rotor_count)
+	for i in range(rotor_count):
+		rotor_speeds[i] = 0.0
+		target_rotor_speeds[i] = 0.0
 	
 	# Set initial control inputs to hover
-	throttle_input = 0.0  # This gets added to hover_throttle
+	throttle_input = 0.0
 	pitch_input = 0.0
 	roll_input = 0.0
 	yaw_input = 0.0
 	
-	# No debug visualization needed for RigidBody3D approach
-	print("Using manual force application for drone physics")
+	# Initialize target position to current position
+	target_position = position
 	
-	# Initialize with no target position to trigger fallback behavior
-	target_position = Vector3.ZERO
-	
-	# Start looking for targets immediately
-	call_deferred("_find_and_track_target")
+	# Start looking for targets if in auto mode
+	if auto_mode_enabled:
+		call_deferred("_find_and_track_target")
 	
 	print("Drone initialized with hover throttle: ", hover_throttle)
+	print("Auto mode enabled: ", auto_mode_enabled)
 
 func _physics_process(delta: float):
 	# Skip processing in editor or if simulation not running
@@ -170,7 +190,7 @@ func _physics_process(delta: float):
 		if not stats.get("running", false):
 			return  # Don't process when simulation is stopped
 	
-	# Update flight control using RigidBody3D with manual force application
+	# Update flight control
 	_update_flight_control(delta)
 	
 	_update_rotor_speeds(delta)
@@ -178,15 +198,18 @@ func _physics_process(delta: float):
 	_check_boundaries(delta)
 	_check_stability(delta)
 	_update_ai_systems(delta)
+	
+	# Debug auto chase mode
+	if auto_mode_enabled and current_flight_mode == FlightMode.AUTO_CHASE:
+		_debug_auto_chase()
 
 func _integrate_forces(state: PhysicsDirectBodyState3D):
-	"""Apply thrust and control forces manually"""
-	_apply_thrust_forces(state)
-	_apply_control_forces(state)
+	"""Apply thrust and control forces manually - FIXED VERSION"""
+	_apply_drone_physics(state)
 
 func _update_flight_control(delta: float):
-	"""Flight control using RigidBody3D with manual force application"""
-	# Update flight modes first to calculate control inputs
+	"""Flight control - now includes AUTO_CHASE mode"""
+	# Update flight modes 
 	match current_flight_mode:
 		FlightMode.MANUAL:
 			_manual_flight_control()
@@ -198,10 +221,13 @@ func _update_flight_control(delta: float):
 			_loiter_control(delta)
 		FlightMode.RTL:
 			_return_to_launch_control(delta)
+		FlightMode.AUTO_CHASE:
+			_auto_chase_control(delta)
 	
 	# Debug output every 3 seconds
 	if fmod(Time.get_time_dict_from_system().get("second", 0), 3) == 0:
-		print("RigidBody3D control - Pitch:", pitch_input, " Roll:", roll_input, " Yaw:", yaw_input, " Throttle:", throttle_input)
+		if auto_mode_enabled:
+			print("AUTO_CHASE - Target: ", chase_target_position, " Distance: ", position.distance_to(chase_target_position))
 
 func _manual_flight_control():
 	"""Direct control - no stabilization"""
@@ -484,6 +510,8 @@ func set_flight_mode(mode: String):
 			current_flight_mode = FlightMode.LOITER
 		"RTL":
 			current_flight_mode = FlightMode.RTL
+		"AUTO_CHASE":
+			current_flight_mode = FlightMode.AUTO_CHASE
 	
 	flight_mode_changed.emit(mode)
 
@@ -551,54 +579,249 @@ func reset_position(pos: Vector3):
 	
 	print("Drone reset to position: ", pos)
 
-func _apply_thrust_forces(state: PhysicsDirectBodyState3D):
-	"""Apply thrust forces from rotors"""
-	var total_thrust = 0.0
-	for speed in rotor_speeds:
-		total_thrust += speed / max_rotor_speed  # Normalize to 0-1
+func _apply_drone_physics(state: PhysicsDirectBodyState3D):
+	"""FIXED: Apply realistic drone physics without double-thrust issues"""
+	# Calculate total normalized rotor thrust (0 to 1)
+	var total_normalized_thrust = 0.0
+	for i in range(rotor_count):
+		total_normalized_thrust += rotor_speeds[i] / max_rotor_speed
+	total_normalized_thrust = clamp(total_normalized_thrust / rotor_count, 0.0, 1.0)
 	
-	# Apply upward thrust force (compensate for gravity + additional thrust)
-	var base_thrust = mass * 9.8 * hover_throttle  # Gravity compensation
-	var additional_thrust = mass * 9.8 * throttle_input  # Additional thrust
-	var total_force = base_thrust + additional_thrust
+	# Base thrust to counteract gravity (hover condition)
+	var gravity_compensation = mass * 9.8
 	
-	var thrust_vector = transform.basis.y * total_force
+	# Calculate actual thrust force with minimum thrust to prevent falling
+	var thrust_multiplier = hover_throttle + (throttle_input * 0.3)  # Reduced throttle sensitivity
+	thrust_multiplier = max(thrust_multiplier, 0.6)  # Minimum thrust to prevent falling
+	var total_thrust = gravity_compensation * thrust_multiplier
+	
+	# Apply main thrust in local Y direction (up)
+	var thrust_vector = transform.basis.y * total_thrust
 	state.apply_central_force(thrust_vector)
+	
+	# Debug: Check if drone is falling through ground
+	if position.y < -0.5:
+		print("WARNING: Drone falling through ground! Position: ", position, " Thrust: ", total_thrust)
+		emergency_mode = true
+	
+	# Apply attitude control torques (separate from thrust)
+	_apply_attitude_control(state)
+	
+	# Apply drag forces for realism
+	var air_resistance = -linear_velocity * 0.5  # Simple air resistance
+	state.apply_central_force(air_resistance)
+	
+	# Apply angular damping
+	var angular_damping = -angular_velocity * 2.0
+	state.apply_torque(angular_damping)
 
-func _apply_control_forces(state: PhysicsDirectBodyState3D):
-	"""Apply control torques for attitude control"""
+func _apply_attitude_control(state: PhysicsDirectBodyState3D):
+	"""Apply torques for pitch, roll, and yaw control"""
 	var rotor_positions = _get_rotor_positions()
 	
-	# Calculate individual rotor forces
-	var base_thrust = hover_throttle + throttle_input
+	# Calculate attitude control strength based on current inputs
+	var control_strength = 8.0  # Reduced from previous implementation
 	
-	# Apply rotor mixing for attitude control
-	var motor_throttle = [
-		base_thrust - pitch_input * 0.3 + roll_input * 0.3 - yaw_input * 0.3,  # Front-right
-		base_thrust - pitch_input * 0.3 - roll_input * 0.3 + yaw_input * 0.3,  # Front-left
-		base_thrust + pitch_input * 0.3 - roll_input * 0.3 - yaw_input * 0.3,  # Rear-left
-		base_thrust + pitch_input * 0.3 + roll_input * 0.3 + yaw_input * 0.3   # Rear-right
-	]
+	# Apply pitch torque (around X axis)
+	if abs(pitch_input) > 0.01:
+		var pitch_torque = Vector3(pitch_input * control_strength, 0, 0)
+		state.apply_torque(transform.basis * pitch_torque)
 	
-	# Apply forces at rotor positions
-	for i in range(min(rotor_count, rotor_positions.size())):
-		var rotor_force = clamp(motor_throttle[i], 0.0, 2.0) * mass * 9.8 * 0.25  # Quarter of total thrust per rotor
-		var force_vector = transform.basis.y * rotor_force
-		var rotor_world_pos = transform.basis * rotor_positions[i]
-		state.apply_force(force_vector, rotor_world_pos)
+	# Apply roll torque (around Z axis)  
+	if abs(roll_input) > 0.01:
+		var roll_torque = Vector3(0, 0, -roll_input * control_strength)
+		state.apply_torque(transform.basis * roll_torque)
+	
+	# Apply yaw torque (around Y axis)
+	if abs(yaw_input) > 0.01:
+		var yaw_torque = Vector3(0, yaw_input * control_strength * 0.5, 0)  # Reduced yaw strength
+		state.apply_torque(transform.basis * yaw_torque)
 
 func _find_and_track_target():
 	"""Find target and start tracking it"""
 	var target_node = get_tree().get_first_node_in_group("target")
 	if target_node and is_instance_valid(target_node):
+		current_target_node = target_node
+		chase_target_position = target_node.position
 		target_position = target_node.position
-		current_flight_mode = FlightMode.LOITER
-		print("Drone found target at: ", target_position)
+		last_target_position = target_node.position
+		
+		if auto_mode_enabled and current_flight_mode != FlightMode.AUTO_CHASE:
+			current_flight_mode = FlightMode.AUTO_CHASE
+			print("Auto mode: Found target at ", target_position, " - switching to AUTO_CHASE")
 	else:
-		# No target found - hover in place
-		if current_flight_mode != FlightMode.STABILIZE:
+		current_target_node = null
+		# No target found - hover in place if in auto mode
+		if auto_mode_enabled and current_flight_mode == FlightMode.AUTO_CHASE:
 			current_flight_mode = FlightMode.STABILIZE
-			print("No target found - hovering")
+			print("Auto mode: No target found - hovering")
+
+func _debug_auto_chase():
+	"""Debug visualization for auto chase mode"""
+	if not current_target_node:
+		return
+		
+	# Draw debug lines to target (would need a debug draw system in a real implementation)
+	var to_target = chase_target_position - position
+	var distance = to_target.length()
+	
+	# Print debug info occasionally
+	if Engine.get_process_frames() % 60 == 0:  # Every second
+		print("AUTO_CHASE DEBUG:")
+		print("  Target distance: ", distance)
+		print("  Chase target pos: ", chase_target_position) 
+		print("  Current inputs - P:", pitch_input, " R:", roll_input, " Y:", yaw_input)
+		print("  Altitude: ", position.y, " Target alt: ", chase_height)
+
+# Public API additions for auto mode
+func enable_auto_mode(enabled: bool):
+	"""Enable or disable auto chase mode"""
+	auto_mode_enabled = enabled
+	if enabled:
+		current_flight_mode = FlightMode.AUTO_CHASE
+		_find_and_track_target()
+		print("Auto chase mode enabled")
+	else:
+		current_flight_mode = FlightMode.STABILIZE
+		current_target_node = null
+		print("Auto chase mode disabled")
+
+func is_auto_mode_enabled() -> bool:
+	"""Check if auto mode is enabled"""
+	return auto_mode_enabled and current_flight_mode == FlightMode.AUTO_CHASE
+
+func get_flight_status() -> Dictionary:
+	"""Get current flight status for UI"""
+	var mode_name = ""
+	match current_flight_mode:
+		FlightMode.MANUAL:
+			mode_name = "MANUAL"
+		FlightMode.STABILIZE:
+			mode_name = "STABILIZE"  
+		FlightMode.ALTITUDE_HOLD:
+			mode_name = "ALTITUDE_HOLD"
+		FlightMode.LOITER:
+			mode_name = "LOITER"
+		FlightMode.RTL:
+			mode_name = "RTL"
+		FlightMode.AUTO_CHASE:
+			mode_name = "AUTO_CHASE"
+	
+	return {
+		"flight_mode": mode_name,
+		"altitude": position.y,
+		"velocity": linear_velocity,
+		"hovering": hover_detected,
+		"auto_mode": auto_mode_enabled,
+		"target_distance": position.distance_to(chase_target_position) if current_target_node else -1.0
+	}
+
+func _auto_chase_control(delta: float):
+	"""Auto chase mode - flies toward target intelligently"""
+	# Find target if we don't have one
+	if not current_target_node or not is_instance_valid(current_target_node):
+		_find_and_track_target()
+		if not current_target_node:
+			# No target found, hover in place
+			_stabilized_flight_control(delta)
+			return
+	
+	# Update target position with prediction
+	var target_pos = current_target_node.position
+	var target_velocity = Vector3.ZERO
+	
+	# Calculate target velocity for prediction
+	if last_target_position != Vector3.ZERO:
+		target_velocity = (target_pos - last_target_position) / delta
+	last_target_position = target_pos
+	
+	# Predict where target will be
+	chase_target_position = target_pos + (target_velocity * target_prediction_time)
+	chase_target_position.y = chase_height  # Maintain preferred height
+	
+	# Calculate direction to predicted target position
+	var to_target = chase_target_position - position
+	var distance_to_target = to_target.length()
+	
+	# Don't get too close to target
+	if distance_to_target < min_chase_distance:
+		# Maintain distance - hover in place
+		pitch_input = 0.0
+		roll_input = 0.0
+		yaw_input = 0.0
+		throttle_input = 0.0
+		target_altitude = chase_height
+		altitude_hold_enabled = true
+		_stabilized_flight_control(delta)
+		return
+	
+	# Calculate control inputs to move toward target
+	var horizontal_distance = Vector2(to_target.x, to_target.z).length()
+	
+	if horizontal_distance > 0.1:  # Only move if there's significant distance
+		var normalized_horizontal = Vector2(to_target.x, to_target.z).normalized()
+		
+		# Calculate pitch and roll inputs (limit movement speed)
+		var movement_strength = clamp(horizontal_distance / 5.0, 0.0, 1.0)  # Scale input based on distance
+		pitch_input = clamp(-normalized_horizontal.y * movement_strength, -0.6, 0.6)  # Forward/backward
+		roll_input = clamp(normalized_horizontal.x * movement_strength, -0.6, 0.6)   # Left/right
+		
+		# Rotate to face target
+		var target_direction = Vector2(to_target.x, to_target.z).normalized()
+		var current_forward = Vector2(-transform.basis.z.x, -transform.basis.z.z).normalized()
+		var angle_diff = target_direction.angle_to(current_forward)
+		yaw_input = clamp(angle_diff * 0.5, -0.3, 0.3)  # Gentle rotation toward target
+	else:
+		pitch_input = 0.0
+		roll_input = 0.0
+		yaw_input = 0.0
+	
+	# Maintain altitude
+	target_altitude = chase_height
+	altitude_hold_enabled = true
+	throttle_input = 0.0  # Let altitude hold manage vertical movement
+	
+	# Use stabilized flight control to execute the movement
+	_stabilized_flight_control(delta)
+
+func emergency_shutdown():
+	"""Emergency shutdown - stop all motion immediately"""
+	print("EMERGENCY SHUTDOWN ACTIVATED!")
+	emergency_mode = true
+	emergency_timer = 0.0
+	
+	# Stop all control inputs
+	pitch_input = 0.0
+	roll_input = 0.0
+	yaw_input = 0.0
+	throttle_input = 0.0
+	
+	# Stop all motion
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	
+	# Reset rotor speeds
+	for i in range(rotor_count):
+		rotor_speeds[i] = 0.0
+		target_rotor_speeds[i] = 0.0
+	
+	# Switch to stabilize mode
+	current_flight_mode = FlightMode.STABILIZE
+	auto_mode_enabled = false
+	
+	emergency_activated.emit()
+
+func enable_altitude_hold(enable: bool, altitude: float = 0.0):
+	"""Enable or disable altitude hold"""
+	altitude_hold_enabled = enable
+	if enable:
+		if altitude > 0.0:
+			target_altitude = altitude
+		else:
+			target_altitude = position.y
+		print("Altitude hold enabled at: ", target_altitude, "m")
+	else:
+		print("Altitude hold disabled")
 
 func _on_body_entered(body):
 	if body != self:

@@ -76,6 +76,8 @@ func _input(event):
 			KEY_4:
 				if drone.has_method("enable_altitude_hold"):
 					drone.enable_altitude_hold(false)
+			KEY_5:
+				_toggle_auto_mode()
 			KEY_SPACE:
 				drone.emergency_shutdown()
 			KEY_ESCAPE:
@@ -153,7 +155,11 @@ func _update_ui():
 	
 	# Update labels with null checks
 	if flight_mode_label:
-		flight_mode_label.text = "Flight Mode: " + status.flight_mode
+		var mode_text = "Flight Mode: " + status.flight_mode
+		if status.get("auto_mode", false):
+			mode_text += " (AUTO)"
+		flight_mode_label.text = mode_text
+		
 		# Update flight mode label color
 		match status.flight_mode:
 			"MANUAL":
@@ -166,6 +172,8 @@ func _update_ui():
 				flight_mode_label.modulate = Color.YELLOW
 			"RTL":
 				flight_mode_label.modulate = Color.MAGENTA
+			"AUTO_CHASE":
+				flight_mode_label.modulate = Color.ORANGE
 			_:
 				flight_mode_label.modulate = Color.WHITE
 	
@@ -199,6 +207,43 @@ func _on_rotor_speed_changed(rotor_index: int, speed: float):
 	# This could trigger rotor sound effects or visual spinning
 	pass
 
+func _toggle_auto_mode():
+	"""Toggle auto chase mode on/off"""
+	if not drone or not drone.has_method("enable_auto_mode"):
+		print("Auto mode not supported by this drone")
+		return
+	
+	var current_auto_status = false
+	if drone.has_method("is_auto_mode_enabled"):
+		current_auto_status = drone.is_auto_mode_enabled()
+	
+	var new_status = not current_auto_status
+	drone.enable_auto_mode(new_status)
+	
+	if new_status:
+		print("AUTO CHASE MODE ENABLED - Drone will automatically fly toward target")
+		print("Press 5 to disable auto mode")
+	else:
+		print("AUTO CHASE MODE DISABLED - Manual control restored")
+		print("Press 5 to enable auto mode")
+
+func _print_console_status():
+	"""Print status to console when no UI is available"""
+	if not drone or not drone.has_method("get_flight_status"):
+		return
+	
+	var status = drone.get_flight_status()
+	var auto_status = status.get("auto_mode", false)
+	var target_distance = status.get("target_distance", -1)
+	
+	print("DRONE STATUS:")
+	print("  Mode: ", status.flight_mode, " (Auto: ", auto_status, ")")
+	print("  Altitude: ", "%.1f m" % status.altitude)
+	print("  Velocity: ", "%.1f m/s" % status.velocity.length())
+	if target_distance > 0:
+		print("  Target Distance: ", "%.1f m" % target_distance)
+	print("  Controls: [1]Manual [2]Stabilize [3]AltHold+ [4]AltHold- [5]Auto [Space]Emergency")
+
 # Public methods for external control (AI interface)
 func set_ai_control_input(pitch: float, roll: float, yaw: float, throttle: float):
 	"""Allow AI to control the drone directly"""
@@ -217,30 +262,16 @@ func set_ai_flight_mode(mode_name: String):
 		_set_drone_flight_mode(mode_name)
 
 func _set_drone_flight_mode(mode_name: String):
-	"""Set flight mode - compatible with both DroneFlight and DroneFlightFallback"""
-	if not drone or not drone.has_method("set_flight_mode"):
+	"""Set flight mode - supports new AUTO_CHASE mode"""
+	if not drone:
 		return
-		
-	# Both drone classes use the same FlightMode enum values
-	# We can access them through the class directly
-	var mode_value = null
-	match mode_name:
-		"MANUAL":
-			mode_value = 0  # FlightMode.MANUAL
-		"STABILIZE":
-			mode_value = 1  # FlightMode.STABILIZE
-		"ALTITUDE_HOLD":
-			mode_value = 2  # FlightMode.ALTITUDE_HOLD
-		"LOITER":
-			mode_value = 3  # FlightMode.LOITER
-		"RTL":
-			mode_value = 4  # FlightMode.RTL
 	
-	if mode_value != null:
-		drone.set_flight_mode(mode_value)
+	# Use string-based mode setting for compatibility
+	if drone.has_method("set_flight_mode"):
+		drone.set_flight_mode(mode_name)
 		print("Set flight mode to: ", mode_name)
 	else:
-		print("Warning: Unknown flight mode: ", mode_name)
+		print("Warning: Drone doesn't support set_flight_mode method")
 
 func _get_ui_structure() -> String:
 	"""Helper function to debug UI structure"""
@@ -258,22 +289,3 @@ func _get_ui_structure() -> String:
 			structure += "} "
 	
 	return structure
-
-func _print_console_status():
-	"""Print drone status to console when no UI is available"""
-	if not drone or not drone.has_method("get_flight_status"):
-		return
-		
-	var status = drone.get_flight_status()
-	var status_text = "DRONE STATUS | Mode: %s | Alt: %.1fm | Vel: %.1fm/s" % [
-		status.flight_mode,
-		status.altitude, 
-		status.velocity.length()
-	]
-	
-	if status.hovering:
-		status_text += " | HOVERING"
-	elif status.velocity.length() > 0.5:
-		status_text += " | FLYING"
-	
-	print(status_text)
