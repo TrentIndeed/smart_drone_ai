@@ -1,0 +1,7 @@
+res://default_env.tres
+res://scenes/main.tscn
+res://scenes/improved_ground.tscn
+res://scripts/collision_layer_info.gd
+res://scripts/ground_collision_setup.gd
+res://scripts/collision_test_debug.gd
+res://scripts/drone_flight_adapter.gd

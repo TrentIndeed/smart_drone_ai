@@ -8,7 +8,7 @@ The following components have been successfully integrated:
 
 ### 1. Scene Structure Updated ✅
 - **Drone.tscn**: Root node changed from `CharacterBody3D` to `AeroBody3D`
-- **Main.tscn**: Updated to include the aerodynamic drone and AI interface
+- **main.tscn**: Updated to include the aerodynamic drone and AI interface
 - **DroneModel**: `.glb` mesh properly positioned as child of AeroBody3D
 
 ### 2. Scripts Created/Updated ✅
@@ -26,7 +26,7 @@ The following components have been successfully integrated:
 
 ### Method 1: Load the Main Scene
 1. Open Godot 4.5
-2. Load `scenes/Main.tscn`
+2. Load `scenes/main.tscn`
 3. Press **F5** to run the scene
 4. The drone should spawn at altitude with realistic physics
 

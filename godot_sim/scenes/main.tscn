@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://d3rlxdclhwhne"]
 
-[ext_resource type="PackedScene" uid="uid://dok2j44hf3gjn" path="res://scenes/Ground.tscn" id="2_ground"]
-[ext_resource type="Script" path="res://scripts/CameraController.gd" id="3_camera"]
-[ext_resource type="PackedScene" uid="uid://c64yx5g0c6vop" path="res://scenes/Drone.tscn" id="4_drone"]
-[ext_resource type="Script" path="res://scripts/AIInterface.gd" id="5_ai_interface"]
-[ext_resource type="PackedScene" uid="uid://dpbrhjliywj0h" path="res://scenes/Target.tscn" id="6_target"]
+[ext_resource type="PackedScene" uid="uid://dok2j44hf3gjn" path="res://scenes/ground.tscn" id="2_ground"]
+[ext_resource type="Script" uid="uid://cgdfud7xovi6v" path="res://scripts/camera_controller.gd" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://c64yx5g0c6vop" path="res://scenes/drone.tscn" id="4_drone"]
+[ext_resource type="Script" uid="uid://bampnmtca12ey" path="res://scripts/ai_interface.gd" id="5_ai_interface"]
+[ext_resource type="PackedScene" uid="uid://dpbrhjliywj0h" path="res://scenes/target.tscn" id="6_target"]
 
 [node name="Main" type="Node3D"]
 

@@ -67,9 +67,9 @@ After that, help me implement -
 - Later, replace logic with S1 JSON `chunk` executor
 
 ## ✏️ Relevant Files
-- `godot_sim/scripts/DroneFlightController.gd`
-- `godot_sim/scenes/Main.tscn`
-- Optional: `Target.tscn` for target movement
+- `godot_sim/scripts/drone_flight_controller.gd`
+- `godot_sim/scenes/main.tscn`
+- Optional: `target.tscn` for target movement
 
 ---
 

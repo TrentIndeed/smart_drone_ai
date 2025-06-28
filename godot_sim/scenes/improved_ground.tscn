@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c52cwxd23xy8"]
+
+[ext_resource type="Script" uid="uid://qflbxyu4pqe" path="res://scripts/ground_collision_setup.gd" id="1"]
+
+[node name="ImprovedGround" type="Node3D"]
+script = ExtResource("1")

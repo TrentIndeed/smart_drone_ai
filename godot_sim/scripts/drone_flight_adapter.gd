@@ -146,7 +146,7 @@ func _ready():
 	
 	# Set collision layers properly
 	collision_layer = 1  # Drone layer
-	collision_mask = 6   # Collide with obstacles (layer 2) and ground (layer 3) = 2+4 = 6
+	collision_mask = 14  # Collide with obstacles (layer 2) + targets (layer 3) + ground (layer 4) = 2+4+8 = 14
 	
 	# Set default flight mode
 	if auto_mode_enabled:
@@ -178,6 +178,11 @@ func _ready():
 	
 	print("Drone initialized with hover throttle: ", hover_throttle)
 	print("Auto mode enabled: ", auto_mode_enabled)
+	
+	# DEBUG: Check collision setup immediately  
+	call_deferred("_debug_collision_setup")
+	
+	print("🔧 COLLISION FIX APPLIED: Drone collision_mask updated to 14 (layers 2+3+4)")
 
 func _physics_process(delta: float):
 	# Skip processing in editor or if simulation not running
@@ -606,6 +611,16 @@ func _apply_drone_physics(state: PhysicsDirectBodyState3D):
 	# Debug: Check if drone is falling through ground
 	if position.y < -0.5:
 		print("WARNING: Drone falling through ground! Position: ", position, " Thrust: ", total_thrust)
+		print("  Drone collision_layer: ", collision_layer, " collision_mask: ", collision_mask)
+		print("  Linear velocity: ", linear_velocity)
+		
+		# Check if ground still exists
+		var ground_bodies = []
+		_find_ground_bodies_recursive(get_tree().current_scene, ground_bodies)
+		print("  Ground bodies found: ", ground_bodies.size())
+		for body in ground_bodies:
+			print("    - ", body.name, " layer:", body.collision_layer)
+		
 		emergency_mode = true
 	
 	# Apply attitude control torques (separate from thrust)
@@ -732,6 +747,93 @@ func get_flight_status() -> Dictionary:
 		"auto_mode": auto_mode_enabled,
 		"target_distance": position.distance_to(chase_target_position) if current_target_node else -1.0
 	}
+
+func _debug_collision_setup():
+	"""Debug collision setup to diagnose ground collision issues"""
+	print("\\n=== DRONE COLLISION DEBUG ===")
+	print("Drone collision_layer: ", collision_layer)
+	print("Drone collision_mask: ", collision_mask)
+	print("Drone position: ", position)
+	print("Drone groups: ", get_groups())
+	
+	# Find all ground collision bodies
+	var ground_bodies = []
+	_find_ground_bodies_recursive(get_tree().current_scene, ground_bodies)
+	
+	print("\\nFound ground collision bodies:")
+	for body in ground_bodies:
+		print("  - ", body.name, " layer:", body.collision_layer, " pos:", body.position)
+		
+		# Test collision compatibility
+		var can_collide = (collision_mask & body.collision_layer) != 0
+		print("    Can collide with drone: ", can_collide)
+		
+		if not can_collide:
+			print("    ❌ COLLISION PROBLEM: Drone mask ", collision_mask, " (binary: ", String.num_uint64(collision_mask, 2), ") doesn't include layer ", body.collision_layer)
+			print("    SOLUTION: Drone mask should be ", collision_mask | body.collision_layer, " to include this layer")
+		else:
+			print("    ✅ Collision should work: Mask ", collision_mask, " (binary: ", String.num_uint64(collision_mask, 2), ") includes layer ", body.collision_layer)
+	
+	# Check collision shape
+	var collision_shape = get_node_or_null("CollisionShape3D")
+	if collision_shape:
+		print("\\nDrone collision shape: ", collision_shape.shape)
+		if collision_shape.shape:
+			print("  Shape type: ", collision_shape.shape.get_class())
+			if collision_shape.shape is BoxShape3D:
+				print("  Box size: ", (collision_shape.shape as BoxShape3D).size)
+	else:
+		print("\\n❌ NO COLLISION SHAPE FOUND!")
+	
+	# Check physics properties
+	print("\\nPhysics Properties:")
+	print("  Mass: ", mass)
+	print("  Gravity scale: ", gravity_scale)
+	print("  Lock rotation: ", lock_rotation)
+	print("  Can sleep: ", can_sleep)
+	print("  Freeze mode: ", freeze_mode)
+	if physics_material_override:
+		print("  Physics material: friction=", physics_material_override.friction, " bounce=", physics_material_override.bounce)
+	
+	print("=== END COLLISION DEBUG ===\\n")
+	
+	# Test ground detection with raycast
+	call_deferred("_test_ground_raycast")
+
+func _test_ground_raycast():
+	"""Test if drone can detect ground using raycast"""
+	print("\\n=== GROUND RAYCAST TEST ===")
+	
+	var space_state = get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(position, position + Vector3(0, -10, 0))
+	query.collision_mask = collision_mask  # Use same mask as drone
+	
+	var result = space_state.intersect_ray(query)
+	if result:
+		print("✅ RAYCAST HIT GROUND:")
+		print("  Hit position: ", result.position)
+		print("  Hit normal: ", result.normal)
+		print("  Hit object: ", result.collider.name)
+		print("  Hit collision layer: ", result.collider.collision_layer)
+		print("  Distance to ground: ", position.distance_to(result.position))
+	else:
+		print("❌ RAYCAST MISSED - NO GROUND DETECTED!")
+		print("  Drone position: ", position)
+		print("  Raycast from: ", position, " to: ", position + Vector3(0, -10, 0))
+		print("  Using collision_mask: ", collision_mask)
+	
+	print("=== END RAYCAST TEST ===\\n")
+
+
+
+func _find_ground_bodies_recursive(node: Node, result: Array):
+	if node is StaticBody3D:
+		var name_lower = node.name.to_lower()
+		if name_lower.contains("ground") or name_lower.contains("floor") or name_lower.contains("wall"):
+			result.append(node)
+	
+	for child in node.get_children():
+		_find_ground_bodies_recursive(child, result)
 
 func _auto_chase_control(delta: float):
 	"""Auto chase mode - flies toward target intelligently"""

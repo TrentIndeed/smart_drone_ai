@@ -19,25 +19,105 @@ var smoothed_velocity: Vector3 = Vector3.ZERO  # Smoothed drone velocity
 var target_camera_position: Vector3 = Vector3.ZERO  # Target position for camera
 var current_camera_velocity: Vector3 = Vector3.ZERO  # Current camera movement velocity
 
+# Drone finding variables
+var drone_search_timer: float = 0.0
+var drone_search_interval: float = 0.5  # Try to find drone every 0.5 seconds
+var drone_found: bool = false
+
 func _ready():
 	camera = $Camera3D
-	# Find the drone
-	await get_tree().create_timer(0.1).timeout  # Wait for drone to be created
+	print("CameraController: Initializing camera system...")
+	
+	# Add to group so GameManager can find us
+	add_to_group("camera_controller")
+	add_to_group("camera_controllers")
+	
+	_find_drone()
+
+func _find_drone():
+	"""Robust drone finding with multiple fallback methods"""
+	drone = null
+	
+	# Method 1: Try groups system first
 	drone = get_tree().get_first_node_in_group("drones")
-	if not drone:
-		# Try the old group name as fallback
-		drone = get_tree().get_first_node_in_group("drone")
-	if not drone:
-		print("Warning: No drone found for camera to follow")
-	else:
-		print("Smooth third-person camera locked onto drone")
+	if drone:
+		print("CameraController: Found drone via 'drones' group: ", drone.name)
+		_initialize_drone_tracking()
+		return
+	
+	# Method 2: Try fallback group name
+	drone = get_tree().get_first_node_in_group("drone")
+	if drone:
+		print("CameraController: Found drone via 'drone' group: ", drone.name)
+		_initialize_drone_tracking()
+		return
+	
+	# Method 3: Try finding by node name in main scene
+	var main_scene = get_tree().current_scene
+	if main_scene:
+		drone = main_scene.get_node_or_null("AerodynamicDrone")
+		if drone:
+			print("CameraController: Found drone by name 'AerodynamicDrone': ", drone.name)
+			_initialize_drone_tracking()
+			return
+	
+	# Method 4: Try finding by class name
+	var all_nodes = get_tree().get_nodes_in_group("drones")
+	for node in all_nodes:
+		if node is RigidBody3D and node.has_method("_physics_process"):
+			drone = node
+			print("CameraController: Found drone by class type: ", drone.name)
+			_initialize_drone_tracking()
+			return
+	
+	# Method 5: Search the entire scene tree for RigidBody3D with drone characteristics
+	drone = _search_for_drone_recursive(get_tree().current_scene)
+	if drone:
+		print("CameraController: Found drone via recursive search: ", drone.name)
+		_initialize_drone_tracking()
+		return
+	
+	print("CameraController: No drone found yet, will retry...")
+	drone_found = false
+
+func _search_for_drone_recursive(node: Node) -> Node3D:
+	"""Recursively search for a node that looks like a drone"""
+	if node is RigidBody3D:
+		# Check if this looks like a drone
+		if node.name.to_lower().contains("drone") or node.has_signal("flight_mode_changed"):
+			return node
+	
+	# Search children
+	for child in node.get_children():
+		var result = _search_for_drone_recursive(child)
+		if result:
+			return result
+	
+	return null
+
+func _initialize_drone_tracking():
+	"""Initialize camera tracking once drone is found"""
+	if drone:
+		drone_found = true
 		last_drone_position = drone.global_position
 		target_camera_position = global_position
 		smoothed_velocity = Vector3.ZERO
 		current_camera_velocity = Vector3.ZERO
+		print("CameraController: Successfully initialized drone tracking!")
+		print("  Drone position: ", drone.global_position)
+		print("  Drone type: ", drone.get_class())
+		print("  Drone script: ", drone.get_script().get_global_name() if drone.get_script() else "No script")
 
 func _process(delta):
-	if not drone or not camera:
+	# If we don't have a drone yet, try to find it periodically
+	if not drone_found or not drone or not is_instance_valid(drone):
+		drone_search_timer += delta
+		if drone_search_timer >= drone_search_interval:
+			drone_search_timer = 0.0
+			_find_drone()
+		return
+	
+	if not camera:
 		return
 	
 	# Get drone position and calculate movement direction
@@ -108,7 +188,9 @@ func _process(delta):
 	
 	# Reduced debug output frequency
 	if Engine.get_process_frames() % 180 == 0:  # Print every 180 frames (3 seconds at 60fps)
-		print("SMOOTH CAMERA DEBUG:")
+		print("CAMERA TRACKING DEBUG:")
+		print("  Drone found: ", drone_found)
+		print("  Drone valid: ", is_instance_valid(drone))
 		print("  Drone position: ", drone_position)
 		print("  Smoothed velocity: ", smoothed_velocity)
 		print("  Movement direction: ", last_movement_direction)
@@ -124,4 +206,11 @@ func set_follow_target(target: Node3D):
 	"""Set a new target for the camera to follow"""
 	drone = target
 	if drone:
-		last_drone_position = drone.global_position 
+		drone_found = true
+		last_drone_position = drone.global_position
+		print("CameraController: Manual target set to: ", drone.name)
+
+func force_find_drone():
+	"""Force the camera to search for a drone immediately"""
+	print("CameraController: Force searching for drone...")
+	_find_drone() 

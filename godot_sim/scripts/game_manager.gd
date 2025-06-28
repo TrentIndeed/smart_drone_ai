@@ -156,6 +156,9 @@ func _setup_game_objects():
 	print("Found drone type: ", drone.get_script().get_global_name() if drone.get_script() else "No script")
 	print("Drone class: ", drone.get_class())
 	
+	# Help camera controller find the drone
+	_connect_camera_to_drone()
+	
 	# Find a safe spawn position for the drone
 	var drone_spawn_pos = _find_safe_drone_spawn_position()
 	if drone is Node3D:
@@ -602,3 +605,84 @@ func _initialize_and_start():
 	start_simulation() 
 
 # All old collision methods removed - GLB objects handle collision automatically
+
+func _connect_camera_to_drone():
+	"""Connect the camera to the drone"""
+	print("GameManager: Helping camera find drone...")
+	
+	# Try multiple methods to find the camera controller
+	var camera_controller = null
+	
+	# Method 1: Direct path from current scene
+	var main_scene = get_tree().current_scene
+	if main_scene:
+		camera_controller = main_scene.get_node_or_null("CameraController")
+		if camera_controller:
+			print("GameManager: Found camera controller via direct path")
+	
+	# Method 2: Search the scene tree recursively
+	if not camera_controller:
+		camera_controller = _find_camera_controller_recursive(get_tree().current_scene)
+		if camera_controller:
+			print("GameManager: Found camera controller via recursive search")
+	
+	# Method 3: Search all nodes in the tree
+	if not camera_controller:
+		var all_nodes = get_tree().get_nodes_in_group("camera_controller")
+		if all_nodes.size() > 0:
+			camera_controller = all_nodes[0]
+			print("GameManager: Found camera controller via group")
+	
+	# Method 4: Find by script class
+	if not camera_controller:
+		var nodes = get_tree().get_nodes_in_group("camera_controllers")
+		for node in nodes:
+			if node.has_method("set_follow_target"):
+				camera_controller = node
+				print("GameManager: Found camera controller by script methods")
+				break
+	
+	# Try to connect the camera to the drone
+	if camera_controller:
+		print("GameManager: Camera controller details:")
+		print("  Node name: ", camera_controller.name)
+		print("  Node type: ", camera_controller.get_class())
+		print("  Script attached: ", camera_controller.get_script() != null)
+		print("  Script path: ", camera_controller.get_script().resource_path if camera_controller.get_script() else "No script")
+		
+		# Check for required methods
+		var has_set_target = camera_controller.has_method("set_follow_target")
+		var has_force_find = camera_controller.has_method("force_find_drone")
+		print("  has_method('set_follow_target'): ", has_set_target)
+		print("  has_method('force_find_drone'): ", has_force_find)
+		
+		if has_set_target:
+			print("GameManager: Setting drone as camera target")
+			camera_controller.set_follow_target(drone)
+		elif has_force_find:
+			print("GameManager: Forcing camera to find drone")
+			camera_controller.force_find_drone()
+		else:
+			print("GameManager: Camera controller found but missing required methods")
+			print("  Script methods (first 10):")
+			var methods = camera_controller.get_method_list()
+			for i in range(min(10, methods.size())):
+				print("    ", methods[i].name)
+			if methods.size() > 10:
+				print("    ... and ", methods.size() - 10, " more methods")
+	else:
+		print("GameManager: Camera controller not found anywhere in scene tree")
+		print("  Current scene: ", get_tree().current_scene.name if get_tree().current_scene else "None")
+		print("  Scene children: ", get_tree().current_scene.get_children() if get_tree().current_scene else "None")
+
+func _find_camera_controller_recursive(node: Node) -> Node:
+	"""Recursively search for the camera controller"""
+	if node.name == "CameraController" or (node.has_method("set_follow_target") and node.has_method("force_find_drone")):
+		return node
+	
+	for child in node.get_children():
+		var result = _find_camera_controller_recursive(child)
+		if result:
+			return result
+	
+	return null
